@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, Wallet, User, Moon, Sun } from 'lucide-react';
+import { Search, Bell, Wallet, User, Moon, Sun, PlusSquare } from 'lucide-react';
 import { Button } from './Button';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useNavigate, Link } from 'react-router-dom';
@@ -32,6 +32,10 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center space-x-3">
             <Button variant="icon" onClick={toggleTheme}>
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button variant="primary" className="hidden sm:flex">
+              <PlusSquare className="w-4 h-4 mr-2" />
+              Add Item
             </Button>
             <Button variant="icon" onClick={() => navigate('/wallet')}>
               <Wallet className="h-5 w-5" />
