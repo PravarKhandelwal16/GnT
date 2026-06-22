@@ -13,6 +13,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useAuth } from '../hooks/useAuth';
 
 /* ─────────────────────── types ─────────────────────── */
 
@@ -33,6 +34,7 @@ interface DropdownItem {
 export const ProfileDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { toggleTheme } = useDarkMode();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,14 +69,6 @@ export const ProfileDropdown: React.FC = () => {
     close();
   }, [location.pathname, close]);
 
-  /* ── Mock user ── */
-  const user = {
-    name: 'Pravar Khandelwal',
-    shortName: 'Pravar',
-    email: 'pravar@email.com',
-    initials: 'PK',
-  };
-
   const handleItem = (item: DropdownItem) => {
     if (item.action) {
       item.action();
@@ -91,6 +85,12 @@ export const ProfileDropdown: React.FC = () => {
   };
 
   const isActive = (path?: string) => !!path && location.pathname === path;
+
+  const handleLogout = () => {
+    close();
+    logout();
+    navigate('/');
+  };
 
   const items: DropdownItem[] = [
     {
@@ -152,12 +152,11 @@ export const ProfileDropdown: React.FC = () => {
       icon: <LogOut size={15} />,
       danger: true,
       dividerBefore: true,
-      action: () => {
-        close();
-        // TODO: wire up real logout
-      },
+      action: handleLogout,
     },
   ];
+
+  if (!user) return null;
 
   return (
     <div ref={containerRef} className="relative">
@@ -207,7 +206,6 @@ export const ProfileDropdown: React.FC = () => {
         <div className="px-4 py-3 border-b border-border">
           <p className="text-sm font-semibold text-textMain truncate">{user.name}</p>
           <p className="text-xs text-textMain-secondary truncate mt-0.5">{user.email}</p>
-
         </div>
 
         {/* Menu items */}

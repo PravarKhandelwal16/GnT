@@ -1,13 +1,21 @@
 import React from 'react';
-import { Search, Bell, Moon, Sun, PlusSquare, Wallet } from 'lucide-react';
+import { Search, Bell, Moon, Sun, PlusSquare, Wallet, LogIn } from 'lucide-react';
 import { Button } from './Button';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ProfileDropdown } from './ProfileDropdown';
+import { useAuth } from '../hooks/useAuth';
+import { useAuthModal } from '../context/AuthModalContext';
 
 export const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useDarkMode();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { requireAuth } = useAuthModal();
+
+  const handleAddItem = () => {
+    if (requireAuth()) navigate('/add-item');
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border">
@@ -45,34 +53,52 @@ export const Navbar: React.FC = () => {
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
-            {/* Add item */}
-            <Button variant="primary" className="hidden sm:flex">
-              <PlusSquare className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
+            {isAuthenticated ? (
+              /* ── Authenticated state ── */
+              <>
+                <Button
+                  variant="primary"
+                  className="hidden sm:flex"
+                  onClick={handleAddItem}
+                >
+                  <PlusSquare className="w-4 h-4 mr-2" />
+                  Add Item
+                </Button>
 
-            {/* Wallet icon */}
-            <Button
-              variant="icon"
-              onClick={() => navigate('/wallet')}
-              aria-label="Open wallet"
-            >
-              <Wallet className="h-5 w-5" />
-            </Button>
+                {/* Wallet */}
+                <Button
+                  variant="icon"
+                  onClick={() => navigate('/wallet')}
+                  aria-label="Open wallet"
+                >
+                  <Wallet className="h-5 w-5" />
+                </Button>
 
-            {/* Notifications */}
-            <div className="relative">
-              <Button variant="icon" aria-label="Notifications">
-                <Bell className="h-5 w-5" />
-              </Button>
-              <span
-                aria-hidden="true"
-                className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-surface shadow-[0_0_8px_rgba(91,124,250,0.8)]"
-              />
-            </div>
+                {/* Notifications */}
+                <div className="relative">
+                  <Button variant="icon" aria-label="Notifications">
+                    <Bell className="h-5 w-5" />
+                  </Button>
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-surface shadow-[0_0_8px_rgba(91,124,250,0.8)]"
+                  />
+                </div>
 
-            {/* Profile dropdown */}
-            <ProfileDropdown />
+                {/* Profile dropdown */}
+                <ProfileDropdown />
+              </>
+            ) : (
+              /* ── Guest state ── */
+              <Link
+                to="/login"
+                id="navbar-login"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+              >
+                <LogIn size={15} />
+                <span className="hidden sm:inline">Login</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
