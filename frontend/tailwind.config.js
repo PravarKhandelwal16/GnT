@@ -9,25 +9,17 @@ export default {
     extend: {
       colors: {
         background: {
-          DEFAULT: '#0B0D14',
-          light: '#F8FAFC',
-          dark: '#0B0D14',
+          DEFAULT: 'rgb(var(--bg-main) / <alpha-value>)',
         },
         surface: {
-          DEFAULT: '#131722',
-          light: '#FFFFFF',
-          dark: '#131722',
+          DEFAULT: 'rgb(var(--bg-surface) / <alpha-value>)',
         },
         card: {
-          DEFAULT: '#171C29',
-          light: '#FFFFFF',
-          dark: '#171C29',
+          DEFAULT: 'rgb(var(--bg-card) / <alpha-value>)',
         },
         primary: {
           DEFAULT: '#5B7CFA',
           hover: '#6C8BFF',
-          light: '#5B7CFA',
-          dark: '#5B7CFA',
         },
         success: {
           DEFAULT: '#22C55E',
@@ -36,15 +28,11 @@ export default {
           DEFAULT: '#F59E0B',
         },
         textMain: {
-          DEFAULT: '#FFFFFF',
-          secondary: '#94A3B8',
-          light: '#0F172A',
-          dark: '#FFFFFF',
+          DEFAULT: 'rgb(var(--text-main) / <alpha-value>)',
+          secondary: 'rgb(var(--text-secondary) / <alpha-value>)',
         },
         border: {
-          DEFAULT: 'rgba(255, 255, 255, 0.08)',
-          light: '#E2E8F0',
-          dark: 'rgba(255, 255, 255, 0.08)',
+          DEFAULT: 'var(--color-border)',
         }
       },
       borderRadius: {

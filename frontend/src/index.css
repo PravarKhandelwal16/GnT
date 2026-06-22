@@ -3,6 +3,24 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-main: 248 250 252;
+    --bg-surface: 255 255 255;
+    --bg-card: 255 255 255;
+    --text-main: 15 23 42;
+    --text-secondary: 100 116 139;
+    --color-border: #E2E8F0;
+  }
+
+  .dark {
+    --bg-main: 11 13 20;
+    --bg-surface: 19 23 34;
+    --bg-card: 23 28 41;
+    --text-main: 255 255 255;
+    --text-secondary: 148 163 184;
+    --color-border: rgba(255, 255, 255, 0.08);
+  }
+
   body {
     @apply bg-background text-textMain antialiased transition-colors duration-200;
   }
