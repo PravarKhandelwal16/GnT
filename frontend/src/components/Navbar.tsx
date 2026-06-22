@@ -2,16 +2,18 @@ import React from 'react';
 import { Search, Bell, Wallet, User, Moon, Sun } from 'lucide-react';
 import { Button } from './Button';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useNavigate, Link } from 'react-router-dom';
 
 export const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useDarkMode();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0 flex items-center">
-            <span className="text-xl font-bold text-primary">Give & Take</span>
+            <Link to="/" className="text-xl font-bold text-primary hover:text-primary-hover transition-colors">Give & Take</Link>
           </div>
           
           <div className="flex-1 max-w-lg px-8">
@@ -31,7 +33,7 @@ export const Navbar: React.FC = () => {
             <Button variant="icon" onClick={toggleTheme}>
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-            <Button variant="icon">
+            <Button variant="icon" onClick={() => navigate('/wallet')}>
               <Wallet className="h-5 w-5" />
             </Button>
             <div className="relative">

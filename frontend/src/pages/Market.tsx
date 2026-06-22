@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { MarketProductCard } from '../components/MarketProductCard';
-import { Search, SlidersHorizontal, Monitor, Home, Shirt, Dumbbell, BookOpen, PlusSquare, Bell, User, Sun, Moon } from 'lucide-react';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { Navbar } from '../components/Navbar';
+import { Search, SlidersHorizontal, Monitor, Home, Shirt, Dumbbell, BookOpen } from 'lucide-react';
 
 const CATEGORIES = [
   { name: 'All Items', icon: null },
@@ -66,38 +65,10 @@ const ITEMS = [
 
 export const Market: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All Items');
-  const { theme, toggleTheme } = useDarkMode();
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-200">
-      <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur-md border-b border-border transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
-              <Link to="/" className="text-2xl font-bold text-primary">Give & Take</Link>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button onClick={toggleTheme} className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                <Search className="h-5 w-5" />
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                <PlusSquare className="h-5 w-5" />
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-surface shadow-[0_0_8px_rgba(91,124,250,0.8)]"></span>
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                <User className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         

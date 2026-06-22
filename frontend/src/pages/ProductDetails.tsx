@@ -1,11 +1,9 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Heart, MessageSquare, MapPin, Search, PlusSquare, Bell, User, Sun, Moon, ArrowLeft, Star, BadgeCheck } from 'lucide-react';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { Link } from 'react-router-dom';
+import { Heart, MessageSquare, MapPin, ArrowLeft, Star, BadgeCheck } from 'lucide-react';
+import { Navbar } from '../components/Navbar';
 
 export const ProductDetails: React.FC = () => {
-  const { id } = useParams();
-  const { theme, toggleTheme } = useDarkMode();
 
   // Mock data for the page based on the image
   const product = {
@@ -36,38 +34,7 @@ export const ProductDetails: React.FC = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-200 font-sans text-textMain">
       {/* Header */}
-      <header className="bg-surface/95 backdrop-blur-md border-b border-border transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex-shrink-0">
-              <Link to="/" className="text-2xl font-bold text-primary">Give & Take</Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-8">
-              <Link to="/market" className="text-sm font-medium text-textMain-secondary hover:text-textMain transition-colors">Market</Link>
-              <Link to="#" className="text-sm font-medium text-textMain-secondary hover:text-textMain transition-colors">Trade</Link>
-              <Link to="#" className="text-sm font-medium text-textMain-secondary hover:text-textMain transition-colors">Wallet</Link>
-              <Link to="#" className="text-sm font-medium text-textMain-secondary hover:text-textMain transition-colors">Profile</Link>
-            </nav>
-
-            <div className="flex items-center space-x-3">
-              <button onClick={toggleTheme} className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                <PlusSquare className="h-5 w-5" />
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-surface shadow-[0_0_8px_rgba(91,124,250,0.8)]"></span>
-              </button>
-              <button className="p-2 text-textMain-secondary hover:text-textMain transition-colors bg-surface border border-border rounded-full shadow-sm hover:bg-card">
-                <User className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
