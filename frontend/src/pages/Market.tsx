@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MarketProductCard } from '../components/MarketProductCard';
 import { Navbar } from '../components/Navbar';
+import { MarketCardSkeleton } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { Search, SlidersHorizontal, Monitor, Home, Shirt, Dumbbell, BookOpen } from 'lucide-react';
 
 const CATEGORIES = [
@@ -65,6 +68,22 @@ const ITEMS = [
 
 export const Market: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All Items');
+  
+  // Demonstration states for Loading, Error, and Empty
+  const [uiState, setUiState] = useState<'loading' | 'error' | 'empty' | 'success'>('loading');
+
+  // Simulate an initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setUiState('success');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setUiState('loading');
+    setTimeout(() => setUiState('success'), 1500);
+  };
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-200">
@@ -111,11 +130,55 @@ export const Market: React.FC = () => {
           })}
         </div>
 
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-2">
-          {ITEMS.map(product => (
-            <MarketProductCard key={product.id} {...product} />
+        {/* Development UI State Toggles (For preview purposes) */}
+        <div className="flex gap-2 p-4 bg-surface rounded-xl border border-border overflow-x-auto">
+          <span className="text-xs font-bold text-textMain-secondary uppercase flex items-center mr-2">Demo States:</span>
+          {['loading', 'success', 'empty', 'error'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setUiState(s as any)}
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                uiState === s ? 'bg-primary text-white' : 'bg-background text-textMain hover:bg-card border border-border'
+              }`}
+            >
+              {s}
+            </button>
           ))}
+        </div>
+
+        {/* Product Grid / States */}
+        <div className="pt-2">
+          {uiState === 'loading' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <MarketCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
+
+          {uiState === 'error' && (
+            <ErrorState 
+              onRetry={handleRetry} 
+              message="We couldn't fetch the market listings right now. Please check your connection and try again." 
+            />
+          )}
+
+          {uiState === 'empty' && (
+            <EmptyState 
+              title="No Items Found" 
+              description="It looks like there aren't any items in this category yet. Be the first to list something!" 
+              actionLabel="List an Item"
+              onAction={() => window.location.href = '/add-item'}
+            />
+          )}
+
+          {uiState === 'success' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {ITEMS.map(product => (
+                <MarketProductCard key={product.id} {...product} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
