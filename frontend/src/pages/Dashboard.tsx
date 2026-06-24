@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { Button } from '../components/Button';
 import { ProductCard } from '../components/ProductCard';
@@ -17,6 +18,7 @@ const RECENT_ADDITIONS = [
 
 export const Dashboard: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All Items');
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-200">
@@ -28,8 +30,8 @@ export const Dashboard: React.FC = () => {
           <div className="lg:col-span-2 bg-gradient-to-br from-primary to-primary-hover rounded-[20px] p-8 text-white shadow-soft flex flex-col justify-between hover:shadow-soft-hover transition-all">
             <div>
               <h2 className="text-lg font-medium opacity-90 mb-2">Available Credits</h2>
-              <div className="flex items-center gap-3 text-5xl font-bold">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10">
+              <div className="flex items-center gap-2 sm:gap-3 text-4xl sm:text-5xl font-bold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 sm:w-10 sm:h-10">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 6v12M8 12h8" />
                 </svg>
@@ -48,7 +50,10 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           
-          <div className="bg-card rounded-[20px] p-8 border border-border flex flex-col items-center justify-center text-center shadow-soft hover:shadow-soft-hover transition-all cursor-pointer group hover:-translate-y-1">
+          <div 
+            className="bg-card rounded-[20px] p-8 border border-border flex flex-col items-center justify-center text-center shadow-soft hover:shadow-soft-hover transition-all cursor-pointer group hover:-translate-y-1"
+            onClick={() => navigate('/add-item')}
+          >
             <div className="w-16 h-16 bg-surface text-primary rounded-full flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors border border-border">
               <Upload className="w-7 h-7" />
             </div>

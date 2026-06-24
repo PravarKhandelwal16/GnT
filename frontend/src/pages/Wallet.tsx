@@ -17,7 +17,7 @@ export const Wallet: React.FC = () => {
             <div>
               <h2 className="text-2xl font-bold text-textMain mb-1">Available Balance</h2>
               <p className="text-textMain-secondary mb-8">Your tradable community credits</p>
-              <div className="text-6xl font-bold text-textMain mb-10 tracking-tight">1,240</div>
+              <div className="text-5xl sm:text-6xl font-bold text-textMain mb-10 tracking-tight">1,240</div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Button variant="primary" className="w-full">Transfer</Button>

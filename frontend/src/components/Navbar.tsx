@@ -32,7 +32,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* ── Search ── */}
-          <div className="flex-1 max-w-lg px-8">
+          <div className="hidden md:block flex-1 max-w-lg px-8">
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-textMain-secondary group-focus-within:text-primary transition-colors" />
@@ -47,7 +47,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* ── Right actions ── */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Theme toggle */}
             <Button variant="icon" onClick={toggleTheme} aria-label="Toggle theme">
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -58,11 +58,12 @@ export const Navbar: React.FC = () => {
               <>
                 <Button
                   variant="primary"
-                  className="hidden sm:flex"
+                  className="flex px-3 sm:px-4"
                   onClick={handleAddItem}
+                  aria-label="Add Item"
                 >
-                  <PlusSquare className="w-4 h-4 mr-2" />
-                  Add Item
+                  <PlusSquare className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Add Item</span>
                 </Button>
 
                 {/* Wallet */}
