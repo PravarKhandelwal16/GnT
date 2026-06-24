@@ -98,7 +98,6 @@ export const ProfileDropdown: React.FC = () => {
       label: 'My Account',
       icon: <User size={15} />,
       path: '/account',
-      newWindow: true,
     },
     {
       id: 'my-listings',
