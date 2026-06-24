@@ -18,14 +18,17 @@ export default {
           DEFAULT: 'rgb(var(--bg-card) / <alpha-value>)',
         },
         primary: {
-          DEFAULT: '#5B7CFA',
+          DEFAULT: 'rgb(var(--accent-primary) / <alpha-value>)',
           hover: '#6C8BFF',
         },
         success: {
-          DEFAULT: '#22C55E',
+          DEFAULT: 'rgb(var(--accent-success) / <alpha-value>)',
         },
         warning: {
-          DEFAULT: '#F59E0B',
+          DEFAULT: 'rgb(var(--accent-warning) / <alpha-value>)',
+        },
+        danger: {
+          DEFAULT: 'rgb(var(--accent-danger) / <alpha-value>)',
         },
         textMain: {
           DEFAULT: 'rgb(var(--text-main) / <alpha-value>)',
