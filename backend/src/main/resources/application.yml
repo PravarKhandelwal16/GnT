@@ -30,3 +30,8 @@ logging:
   level:
     org.flywaydb: INFO
     org.hibernate.SQL: WARN
+
+application:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktc2VjdXJlLXNlY3JldC1rZXktZm9yLWdudC1hcHAtMjAyNA==}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
