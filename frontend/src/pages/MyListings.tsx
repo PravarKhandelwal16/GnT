@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { Button } from '../components/Button';
 import {
@@ -109,6 +110,7 @@ const ListingRow: React.FC<{ listing: Listing }> = ({ listing }) => {
 
 /* ─── Main Component ─── */
 export const MyListings: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ListingStatus | 'all'>('all');
   const [search, setSearch] = useState('');
 
@@ -136,7 +138,7 @@ export const MyListings: React.FC = () => {
               {MOCK_LISTINGS.length} items you've uploaded
             </p>
           </div>
-          <Button variant="primary" size="sm" id="listings-add-item">
+          <Button variant="primary" size="sm" id="listings-add-item" onClick={() => navigate('/add-item')}>
             <PlusSquare size={15} />
             Add Item
           </Button>
@@ -225,7 +227,7 @@ export const MyListings: React.FC = () => {
                 {search ? 'No items match your search. Try a different keyword.' : 'You don\'t have any items in this category yet.'}
               </p>
               {!search && (
-                <Button variant="primary" size="sm" className="mt-5" id="listings-add-first">
+                <Button variant="primary" size="sm" className="mt-5" id="listings-add-first" onClick={() => navigate('/add-item')}>
                   <PlusSquare size={14} />
                   Add Your First Item
                 </Button>
