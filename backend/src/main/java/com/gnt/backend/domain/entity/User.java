@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,6 +27,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@ToString
 public class User {
 
     @Id
@@ -115,5 +117,26 @@ public class User {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // ── Identity ──────────────────────────────────────────────────────────────
+
+    /**
+     * Two persisted User instances are equal iff they share the same database id.
+     * A transient instance (id == null) is never equal to any other instance.
+     *
+     * <p>Using {@code getClass().hashCode()} as a stable hash ensures the contract
+     * holds when an entity transitions from transient to persistent (id goes null → value).
+     */
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public final int hashCode() {
+        return getClass().hashCode();
     }
 }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@ToString(exclude = {"product"})
 public class ProductImage {
 
     @Id
@@ -65,5 +67,19 @@ public class ProductImage {
     @PrePersist
     protected void onCreate() {
         this.uploadedAt = LocalDateTime.now();
+    }
+
+    // ── Identity ──────────────────────────────────────────────────────────────
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ProductImage other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public final int hashCode() {
+        return getClass().hashCode();
     }
 }

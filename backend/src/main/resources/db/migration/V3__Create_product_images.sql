@@ -8,7 +8,10 @@ CREATE TABLE product_images
     uploaded_at   DATETIME     NOT NULL,
 
     CONSTRAINT pk_product_images         PRIMARY KEY (id),
-    CONSTRAINT fk_product_images_product FOREIGN KEY (product_id) REFERENCES products (id)
+    CONSTRAINT fk_product_images_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE RESTRICT ON UPDATE RESTRICT
+
+    -- product_id is automatically indexed by MySQL for the FK above.
+    -- No additional indexes required: images are always queried by product_id.
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
