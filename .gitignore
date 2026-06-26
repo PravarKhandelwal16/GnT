@@ -39,3 +39,61 @@ dist-ssr
 *PRD.md
 *Project Referring Data
 *Database Desgin.md
+
+# ── Java / Maven ──────────────────────────────────────────────────────────────
+
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Compiled class files
+*.class
+
+# Package files
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper binary (the .properties file IS committed; the jar is not)
+.mvn/wrapper/maven-wrapper.jar
+
+# ── Spring Boot ───────────────────────────────────────────────────────────────
+
+# Local override property files (contain secrets / machine-specific config)
+application-local.yml
+application-local.properties
+application-dev.yml
+application-dev.properties
+*.env
+.env.*
+
+# ── IntelliJ IDEA ─────────────────────────────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ── Eclipse ───────────────────────────────────────────────────────────────────
+.classpath
+.project
+.settings/
+bin/
+.factorypath
+
+# ── VS Code (Java extensions) ─────────────────────────────────────────────────
+.vscode/settings.json
+.classpath
+.project
+.settings
+
+# ── OS artefacts ──────────────────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
