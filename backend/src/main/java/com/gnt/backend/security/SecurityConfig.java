@@ -1,11 +1,11 @@
 package com.gnt.backend.security;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -24,6 +24,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *   <li>{@code POST /api/auth/**} is publicly accessible</li>
  *   <li>All other endpoints require a valid Bearer token</li>
  * </ul>
+ *
+ * <p><strong>Design note:</strong> {@link DaoAuthenticationProvider} is NOT published as a
+ * {@code @Bean}. Doing so in Spring Security 6 causes auto-configuration to spawn a second
+ * competing filter chain that overrides {@code permitAll()} and returns 401 on public paths.
+ * One shared {@link AuthenticationManager} bean is created via {@link ProviderManager} and
+ * injected both into {@link SecurityFilterChain} and into {@code AuthServiceImpl}.
  */
 @Configuration
 @EnableWebSecurity
@@ -55,29 +61,40 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .authenticationProvider(authenticationProvider())
+                .authenticationManager(authenticationManager())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /**
+     * Shared {@link AuthenticationManager} backed by {@link DaoAuthenticationProvider}.
+     * Used by both the Security filter chain and {@code AuthServiceImpl} for login.
+     */
     @Bean
-    public AuthenticationProvider authenticationProvider() {
+    public AuthenticationManager authenticationManager() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+        return new ProviderManager(provider);
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * Prevents Spring Boot from auto-registering {@link JwtAuthenticationFilter}
+     * as a raw Servlet filter outside the Security filter chain.
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(
+            JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration =
+                new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

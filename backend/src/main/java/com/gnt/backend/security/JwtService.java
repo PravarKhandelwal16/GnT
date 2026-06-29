@@ -47,7 +47,7 @@ public class JwtService {
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationMs))
-                .signWith(secretKey)
+                .signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
     }
 

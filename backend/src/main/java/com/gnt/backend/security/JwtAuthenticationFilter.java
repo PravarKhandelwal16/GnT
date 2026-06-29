@@ -69,7 +69,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (JwtException | IllegalArgumentException ignored) {
+        } catch (JwtException | IllegalArgumentException ex) {
+            // Log the exception to see why token parsing fails
+            System.err.println("JWT Validation failed: " + ex.getMessage());
             // Invalid token — leave SecurityContext empty; entry point handles the 401
         }
 
