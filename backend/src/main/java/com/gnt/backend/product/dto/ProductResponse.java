@@ -18,7 +18,7 @@ public record ProductResponse(
         Integer creditValue,
         String pickupAddress,
         ProductStatus status,
-        List<ProductImageResponse> images,
+        List<ProductMediaResponse> media,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

@@ -30,10 +30,5 @@ public record ProductRequest(
 
         @NotBlank(message = "Pickup address is required")
         @Size(max = 500, message = "Pickup address cannot exceed 500 characters")
-        String pickupAddress,
-
-        @NotNull(message = "Images are required")
-        @Size(min = 1, message = "At least one image must be provided")
-        @Valid
-        List<ProductImageRequest> images
+        String pickupAddress
 ) {}

@@ -25,11 +25,12 @@ public class ProductController {
         this.productService = productService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductResponse> createProduct(
-            @Valid @RequestBody ProductRequest request,
+            @RequestPart("data") @Valid ProductRequest request,
+            @RequestPart("files") java.util.List<org.springframework.web.multipart.MultipartFile> files,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        ProductResponse response = productService.createProduct(request, userPrincipal.getId());
+        ProductResponse response = productService.createProduct(request, files, userPrincipal.getId());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
@@ -53,12 +54,13 @@ public class ProductController {
         return ResponseEntity.ok(productService.getUserProducts(userPrincipal.getId(), pageable));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Long id,
-            @Valid @RequestBody ProductRequest request,
+            @RequestPart("data") @Valid ProductRequest request,
+            @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(productService.updateProduct(id, request, userPrincipal.getId()));
+        return ResponseEntity.ok(productService.updateProduct(id, request, files, userPrincipal.getId()));
     }
 
     @DeleteMapping("/{id}")

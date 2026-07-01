@@ -1,8 +1,8 @@
 package com.gnt.backend.product.mapper;
 
 import com.gnt.backend.domain.entity.Product;
-import com.gnt.backend.domain.entity.ProductImage;
-import com.gnt.backend.product.dto.ProductImageResponse;
+import com.gnt.backend.domain.entity.ProductMedia;
+import com.gnt.backend.product.dto.ProductMediaResponse;
 import com.gnt.backend.product.dto.ProductListResponse;
 import com.gnt.backend.product.dto.ProductResponse;
 import org.springframework.stereotype.Component;
@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
 public class ProductMapper {
 
     public ProductResponse toResponse(Product product) {
-        List<ProductImageResponse> imageResponses = product.getImages().stream()
-                .map(this::toImageResponse)
+        List<ProductMediaResponse> mediaResponses = product.getMedia().stream()
+                .map(this::toMediaResponse)
                 .collect(Collectors.toList());
 
         return new ProductResponse(
@@ -29,16 +29,16 @@ public class ProductMapper {
                 product.getCreditValue(),
                 product.getPickupAddress(),
                 product.getStatus(),
-                imageResponses,
+                mediaResponses,
                 product.getCreatedAt(),
                 product.getUpdatedAt()
         );
     }
 
     public ProductListResponse toListResponse(Product product) {
-        String primaryImageUrl = product.getImages().stream()
-                .filter(ProductImage::isPrimary)
-                .map(ProductImage::getImageUrl)
+        String primaryMediaUrl = product.getMedia().stream()
+                .filter(ProductMedia::isPrimary)
+                .map(ProductMedia::getMediaUrl)
                 .findFirst()
                 .orElse(null);
 
@@ -48,17 +48,18 @@ public class ProductMapper {
                 product.getCategory(),
                 product.getCondition(),
                 product.getCreditValue(),
-                primaryImageUrl,
+                primaryMediaUrl,
                 product.getCreatedAt()
         );
     }
 
-    private ProductImageResponse toImageResponse(ProductImage image) {
-        return new ProductImageResponse(
-                image.getId(),
-                image.getImageUrl(),
-                image.isPrimary(),
-                image.getDisplayOrder()
+    private ProductMediaResponse toMediaResponse(ProductMedia media) {
+        return new ProductMediaResponse(
+                media.getId(),
+                media.getMediaUrl(),
+                media.getMediaType(),
+                media.isPrimary(),
+                media.getDisplayOrder()
         );
     }
 }

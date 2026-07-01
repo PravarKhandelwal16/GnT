@@ -11,6 +11,6 @@ public record ProductListResponse(
         Category category,
         Condition condition,
         Integer creditValue,
-        String primaryImageUrl,
+        String primaryMediaUrl,
         LocalDateTime createdAt
 ) {}

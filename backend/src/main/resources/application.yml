@@ -35,3 +35,8 @@ application:
   jwt:
     secret: ${JWT_SECRET:Z2l2ZWFuZHRha2Utc2VjcmV0LWtleS1mb3Itand0LXNpZ25pbmctMjAyNC1wcm9kdWN0aW9u}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+imagekit:
+  public-key: public_dRppWvRPA54HQs2Rukh8tKr1R9o=
+  private-key: private_xmyorWeyR4+ku+uyXiXEqcFBO80=
+  url-endpoint: https://ik.imagekit.io/axrjn5mau/

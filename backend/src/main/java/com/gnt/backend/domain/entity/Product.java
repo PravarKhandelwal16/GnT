@@ -26,7 +26,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(exclude = {"owner", "images"})
+@ToString(exclude = {"owner", "media"})
 public class Product {
 
     @Id
@@ -93,11 +93,11 @@ public class Product {
     @Column(name = "version", nullable = false)
     private Integer version;
 
-    // ── Images ───────────────────────────────────────────────────────────────
+    // ── Media ───────────────────────────────────────────────────────────────
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
-    private List<ProductImage> images = new ArrayList<>();
+    private List<ProductMedia> media = new ArrayList<>();
 
     // ── Audit ─────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 package com.gnt.backend.domain.entity;
 
+import com.gnt.backend.domain.enums.MediaType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,22 +10,23 @@ import lombok.ToString;
 import java.time.LocalDateTime;
 
 /**
- * Represents a single image associated with a {@link Product}.
+ * Represents a single media file associated with a {@link Product}.
  *
  * <p>Business rules:
  * <ul>
- *   <li>Every active product must have at least one image (enforced by the service layer).</li>
- *   <li>Exactly one image per product must have {@code isPrimary = true} (enforced by the service layer).</li>
- *   <li>Images support display ordering via {@code displayOrder}.</li>
+ *   <li>Every active product must have at least one media file (enforced by the service layer).</li>
+ *   <li>Exactly one media per product must have {@code isPrimary = true} (enforced by the service layer).</li>
+ *   <li>Only IMAGE media can be primary.</li>
+ *   <li>Media files support display ordering via {@code displayOrder}.</li>
  * </ul>
  */
 @Entity
-@Table(name = "product_images")
+@Table(name = "product_media")
 @Getter
 @Setter
 @NoArgsConstructor
 @ToString(exclude = {"product"})
-public class ProductImage {
+public class ProductMedia {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,18 +39,25 @@ public class ProductImage {
     @JoinColumn(
             name = "product_id",
             nullable = false,
-            foreignKey = @ForeignKey(name = "fk_product_images_product")
+            foreignKey = @ForeignKey(name = "fk_product_media_product")
     )
     private Product product;
 
-    // ── Image ─────────────────────────────────────────────────────────────────
+    // ── Media ─────────────────────────────────────────────────────────────────
 
-    @Column(name = "image_url", nullable = false, length = 500)
-    private String imageUrl;
+    @Column(name = "media_url", nullable = false, length = 500)
+    private String mediaUrl;
+
+    @Column(name = "imagekit_file_id", length = 255)
+    private String imagekitFileId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "media_type", nullable = false, length = 20)
+    private MediaType mediaType = MediaType.IMAGE;
 
     /**
-     * Marks this image as the primary (thumbnail) image for the product.
-     * Exactly one image per product must be primary.
+     * Marks this media as the primary (thumbnail) for the product.
+     * Exactly one image per product must be primary. Videos cannot be primary.
      */
     @Column(name = "is_primary", nullable = false)
     private boolean isPrimary = false;
@@ -74,7 +83,7 @@ public class ProductImage {
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof ProductImage other)) return false;
+        if (!(o instanceof ProductMedia other)) return false;
         return id != null && id.equals(other.id);
     }
 
