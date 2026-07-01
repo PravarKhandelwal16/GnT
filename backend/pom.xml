@@ -123,6 +123,13 @@
             <artifactId>imagekit-java</artifactId>
             <version>2.0.1</version>
         </dependency>
+        
+        <!-- Force modern Okio for OkHttp 4.x compatibility in Spring Boot 3 -->
+        <dependency>
+            <groupId>com.squareup.okio</groupId>
+            <artifactId>okio</artifactId>
+            <version>3.9.0</version>
+        </dependency>
 
     </dependencies>
 
