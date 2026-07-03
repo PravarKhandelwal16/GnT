@@ -10,7 +10,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface ProductService {
     ProductResponse createProduct(ProductRequest request, java.util.List<org.springframework.web.multipart.MultipartFile> files, Long ownerId);
-    ProductResponse getProductById(Long id);
+    ProductResponse getProductById(Long id, Long requesterId);
     Page<ProductListResponse> getActiveProducts(Category category, Condition condition, Pageable pageable);
     Page<ProductListResponse> getUserProducts(Long ownerId, Pageable pageable);
     ProductResponse updateProduct(Long id, ProductRequest request, java.util.List<org.springframework.web.multipart.MultipartFile> files, Long ownerId);

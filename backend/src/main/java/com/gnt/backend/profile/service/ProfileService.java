@@ -9,5 +9,13 @@ import org.springframework.data.domain.Pageable;
 public interface ProfileService {
     UserProfileResponse getProfile(Long userId);
     UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest request);
+    
+    // Onboarding
+    void markWelcomeSeen(Long userId);
+
+    // Account Deletion
+    String requestAccountDeletion(Long userId);
+    void confirmAccountDeletion(Long userId, String otp);
+
     Page<CreditHistory> getCreditHistory(Long userId, Pageable pageable);
 }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, User, Phone, Mail, Lock, ArrowRight } from 'lucide-react';
-import { useAuth, SignupFields } from '../context/AuthContext';
+import { Eye, EyeOff, User, Phone, Mail, Lock, ArrowRight, Calendar } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import type { SignupFields } from '../context/AuthContext';
 
 /* ─────────────────────── password strength ─────────────────────── */
 
@@ -88,14 +89,14 @@ const Field: React.FC<FieldProps> = ({
 
 /* ─────────────────────── types ─────────────────────── */
 
-interface FormState extends Omit<SignupFields, 'address'> {
+interface FormState extends Omit<SignupFields, never> {
   confirmPassword: string;
   terms: boolean;
 }
 
 const INITIAL: FormState = {
   fullName: '',
-  age: '',
+  dateOfBirth: '',
   mobile: '',
   email: '',
   password: '',
@@ -126,8 +127,12 @@ export const SignUp: React.FC = () => {
   const validate = (): boolean => {
     const e: Partial<Record<keyof FormState, string>> = {};
     if (!form.fullName.trim()) e.fullName = 'Full name is required.';
-    if (!form.age.trim() || isNaN(Number(form.age)) || Number(form.age) < 13)
-      e.age = 'Please enter a valid age (13+).';
+    if (!form.dateOfBirth) e.dateOfBirth = 'Date of birth is required.';
+    else {
+      const dob = new Date(form.dateOfBirth);
+      const age = (Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      if (isNaN(dob.getTime()) || age < 13) e.dateOfBirth = 'You must be at least 13 years old.';
+    }
     if (!form.mobile.trim()) e.mobile = 'Mobile number is required.';
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'A valid email is required.';
     if (form.password.length < 8) e.password = 'Password must be at least 8 characters.';
@@ -142,10 +147,19 @@ export const SignUp: React.FC = () => {
     if (!validate()) return;
     setIsLoading(true);
     try {
-      await signup({ ...form, address: '' });
+      await signup({
+        fullName: form.fullName,
+        email: form.email,
+        mobile: form.mobile,
+        password: form.password,
+        dateOfBirth: form.dateOfBirth,
+      });
       navigate('/', { replace: true });
-    } catch {
-      setErrors({ email: 'Something went wrong. Please try again.' });
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Something went wrong. Please try again.';
+      setErrors({ email: msg });
     } finally {
       setIsLoading(false);
     }
@@ -172,9 +186,10 @@ export const SignUp: React.FC = () => {
               error={errors.fullName} onChange={handleChange}
             />
             <Field
-              id="signup-age" name="age" label="Age" type="number"
-              icon={<User size={16} />} placeholder="25"
-              value={form.age} error={errors.age} onChange={handleChange}
+              id="signup-dob" name="dateOfBirth" label="Date of Birth" type="date"
+              icon={<Calendar size={16} />} placeholder=""
+              autoComplete="bday" value={form.dateOfBirth}
+              error={errors.dateOfBirth} onChange={handleChange}
             />
             <Field
               id="signup-mobile" name="mobile" label="Mobile Number" type="tel"

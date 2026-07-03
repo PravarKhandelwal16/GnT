@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Bell, Moon, Sun, PlusSquare, Wallet, LogIn } from 'lucide-react';
 import { Button } from './Button';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -12,6 +12,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { requireAuth } = useAuthModal();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleAddItem = () => {
     if (requireAuth()) navigate('/add-item');
@@ -40,6 +41,13 @@ export const Navbar: React.FC = () => {
               <input
                 type="text"
                 id="navbar-search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    navigate(`/market?query=${encodeURIComponent(searchQuery.trim())}`);
+                  }
+                }}
                 className="block w-full pl-12 pr-4 py-2.5 bg-background border border-border rounded-xl leading-5 text-textMain placeholder-textMain-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary sm:text-sm transition-all shadow-sm"
                 placeholder="Search products..."
               />

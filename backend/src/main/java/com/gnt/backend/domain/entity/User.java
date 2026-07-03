@@ -99,6 +99,9 @@ public class User {
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified = false;
 
+    @Column(name = "has_seen_welcome", nullable = false)
+    private boolean hasSeenWelcome = false;
+
     // ── Audit ─────────────────────────────────────────────────────────────────
 
     @Column(name = "created_at", nullable = false, updatable = false)

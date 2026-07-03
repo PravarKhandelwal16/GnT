@@ -10,7 +10,9 @@ import com.gnt.backend.domain.enums.Condition;
 import com.gnt.backend.domain.enums.CreditHistoryType;
 import com.gnt.backend.domain.enums.ProductStatus;
 import com.gnt.backend.domain.enums.MediaType;
+import com.gnt.backend.domain.enums.TransactionStatus;
 import com.gnt.backend.auth.repository.CreditHistoryRepository;
+import com.gnt.backend.transaction.repository.TransactionRepository;
 import com.gnt.backend.product.dto.ProductListResponse;
 import com.gnt.backend.product.dto.ProductRequest;
 import com.gnt.backend.product.dto.ProductResponse;
@@ -31,6 +33,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final CreditHistoryRepository creditHistoryRepository;
+    private final TransactionRepository transactionRepository;
     private final ProductMapper productMapper;
     private final ImageKitService imageKitService;
 
@@ -38,11 +41,13 @@ public class ProductServiceImpl implements ProductService {
             ProductRepository productRepository,
             UserRepository userRepository,
             CreditHistoryRepository creditHistoryRepository,
+            TransactionRepository transactionRepository,
             ProductMapper productMapper,
             ImageKitService imageKitService) {
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.creditHistoryRepository = creditHistoryRepository;
+        this.transactionRepository = transactionRepository;
         this.productMapper = productMapper;
         this.imageKitService = imageKitService;
     }
@@ -60,7 +65,11 @@ public class ProductServiceImpl implements ProductService {
         product.setCategory(request.category());
         product.setCondition(request.condition());
         product.setCreditValue(request.creditValue());
-        product.setPickupAddress(request.pickupAddress());
+        product.setStreet(request.street());
+        product.setCity(request.city());
+        product.setState(request.state());
+        product.setPostalCode(request.postalCode());
+        product.setCountry(request.country());
         
         // MVP: Auto-approve newly created products
         product.setStatus(ProductStatus.ACTIVE);
@@ -69,27 +78,40 @@ public class ProductServiceImpl implements ProductService {
 
         Product savedProduct = productRepository.save(product);
 
-        // MVP: Give 50% credit on approval
-        int approvalBonus = request.creditValue() / 2;
-        owner.setCreditBalance(owner.getCreditBalance() + approvalBonus);
+        // Give 40% credit on upload
+        int uploadBonus = (int) (request.creditValue() * 0.4);
+        owner.setCreditBalance(owner.getCreditBalance() + uploadBonus);
         userRepository.save(owner);
 
         CreditHistory history = new CreditHistory();
         history.setUser(owner);
-        history.setAmount(approvalBonus);
+        history.setAmount(uploadBonus);
         history.setTransactionType(CreditHistoryType.PRODUCT_APPROVED);
-        history.setDescription("Received 50% credit value for product approval: " + savedProduct.getTitle());
+        history.setDescription("Received 40% credit value for uploading product: " + savedProduct.getTitle());
         creditHistoryRepository.save(history);
 
-        return productMapper.toResponse(savedProduct);
+        return productMapper.toResponse(savedProduct, true);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ProductResponse getProductById(Long id) {
+    public ProductResponse getProductById(Long id, Long requesterId) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
-        return productMapper.toResponse(product);
+                
+        boolean canSeeFullAddress = false;
+        if (requesterId != null) {
+            if (product.getOwner().getId().equals(requesterId)) {
+                canSeeFullAddress = true;
+            } else {
+                canSeeFullAddress = transactionRepository.existsByProductIdAndBuyerIdAndStatusIn(
+                        product.getId(), requesterId, 
+                        List.of(TransactionStatus.INITIATED, TransactionStatus.WAITING_CONFIRMATION, TransactionStatus.COMPLETED)
+                );
+            }
+        }
+        
+        return productMapper.toResponse(product, canSeeFullAddress);
     }
 
     @Override
@@ -124,7 +146,11 @@ public class ProductServiceImpl implements ProductService {
         product.setDescription(request.description());
         product.setCategory(request.category());
         product.setCondition(request.condition());
-        product.setPickupAddress(request.pickupAddress());
+        product.setStreet(request.street());
+        product.setCity(request.city());
+        product.setState(request.state());
+        product.setPostalCode(request.postalCode());
+        product.setCountry(request.country());
         
         // Note: we don't allow changing creditValue on an active product easily without re-adjusting credits,
         // For MVP we allow it but don't do credit adjustments to keep it simple.
@@ -138,7 +164,7 @@ public class ProductServiceImpl implements ProductService {
             processAndSetMedia(product, files);
         }
 
-        return productMapper.toResponse(productRepository.save(product));
+        return productMapper.toResponse(productRepository.save(product), true);
     }
 
     @Override
@@ -154,6 +180,19 @@ public class ProductServiceImpl implements ProductService {
         if (product.getStatus() == ProductStatus.LOCKED || product.getStatus() == ProductStatus.EXCHANGED) {
             throw new RuntimeException("Cannot delete a locked or exchanged product");
         }
+
+        // Claw back 40% credits
+        int uploadBonus = (int) (product.getCreditValue() * 0.4);
+        User owner = product.getOwner();
+        owner.setCreditBalance(owner.getCreditBalance() - uploadBonus);
+        userRepository.save(owner);
+
+        CreditHistory clawback = new CreditHistory();
+        clawback.setUser(owner);
+        clawback.setAmount(-uploadBonus);
+        clawback.setTransactionType(CreditHistoryType.REFUND);
+        clawback.setDescription("Reversed 40% credit value for deleted product: " + product.getTitle());
+        creditHistoryRepository.save(clawback);
 
         product.setStatus(ProductStatus.DELETED);
         productRepository.save(product);

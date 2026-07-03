@@ -74,8 +74,20 @@ public class Product {
     @Column(name = "credit_value", nullable = false)
     private Integer creditValue;
 
-    @Column(name = "pickup_address", nullable = false, length = 500)
-    private String pickupAddress;
+    @Column(name = "street", nullable = false, length = 255)
+    private String street;
+
+    @Column(name = "city", nullable = false, length = 100)
+    private String city;
+
+    @Column(name = "state", nullable = false, length = 100)
+    private String state;
+
+    @Column(name = "postal_code", nullable = false, length = 20)
+    private String postalCode;
+
+    @Column(name = "country", nullable = false, length = 100)
+    private String country;
 
     // ── Status ───────────────────────────────────────────────────────────────
 

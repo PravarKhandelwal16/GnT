@@ -37,8 +37,14 @@ dist-ssr
 # Others
 *.pdf
 *PRD.md
-*Project Referring Data
-*Database Desgin.md
+Project Referring Data/
+*Database Design.md
+.eslintcache
+coverage/
+build/
+.aider*
+*.pem
+*.key
 
 # ── Java / Maven ──────────────────────────────────────────────────────────────
 

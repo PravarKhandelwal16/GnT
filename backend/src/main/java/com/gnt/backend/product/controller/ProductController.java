@@ -25,9 +25,10 @@ public class ProductController {
         this.productService = productService;
     }
 
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @io.swagger.v3.oas.annotations.media.Content(encoding = @io.swagger.v3.oas.annotations.media.Encoding(name = "data", contentType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)))
     @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductResponse> createProduct(
-            @RequestPart("data") @Valid ProductRequest request,
+            @io.swagger.v3.oas.annotations.Parameter(content = @io.swagger.v3.oas.annotations.media.Content(mediaType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)) @RequestPart("data") @Valid ProductRequest request,
             @RequestPart("files") java.util.List<org.springframework.web.multipart.MultipartFile> files,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         ProductResponse response = productService.createProduct(request, files, userPrincipal.getId());
@@ -43,8 +44,11 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
-        return ResponseEntity.ok(productService.getProductById(id));
+    public ResponseEntity<ProductResponse> getProductById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        Long userId = userPrincipal != null ? userPrincipal.getId() : null;
+        return ResponseEntity.ok(productService.getProductById(id, userId));
     }
 
     @GetMapping("/me")
@@ -54,10 +58,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.getUserProducts(userPrincipal.getId(), pageable));
     }
 
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @io.swagger.v3.oas.annotations.media.Content(encoding = @io.swagger.v3.oas.annotations.media.Encoding(name = "data", contentType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)))
     @PutMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Long id,
-            @RequestPart("data") @Valid ProductRequest request,
+            @io.swagger.v3.oas.annotations.Parameter(content = @io.swagger.v3.oas.annotations.media.Content(mediaType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)) @RequestPart("data") @Valid ProductRequest request,
             @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(productService.updateProduct(id, request, files, userPrincipal.getId()));

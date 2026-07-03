@@ -28,7 +28,23 @@ public record ProductRequest(
         @Min(value = 1, message = "Credit value must be at least 1")
         Integer creditValue,
 
-        @NotBlank(message = "Pickup address is required")
-        @Size(max = 500, message = "Pickup address cannot exceed 500 characters")
-        String pickupAddress
+        @NotBlank(message = "Street address is required")
+        @Size(max = 255, message = "Street address cannot exceed 255 characters")
+        String street,
+
+        @NotBlank(message = "City is required")
+        @Size(max = 100, message = "City cannot exceed 100 characters")
+        String city,
+
+        @NotBlank(message = "State is required")
+        @Size(max = 100, message = "State cannot exceed 100 characters")
+        String state,
+
+        @NotBlank(message = "Postal code is required")
+        @Size(max = 20, message = "Postal code cannot exceed 20 characters")
+        String postalCode,
+
+        @NotBlank(message = "Country is required")
+        @Size(max = 100, message = "Country cannot exceed 100 characters")
+        String country
 ) {}

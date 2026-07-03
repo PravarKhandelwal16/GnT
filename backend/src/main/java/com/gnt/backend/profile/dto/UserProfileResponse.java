@@ -21,6 +21,7 @@ public record UserProfileResponse(
         Double rating,
         Boolean emailVerified,
         Boolean phoneVerified,
+        Boolean hasSeenWelcome,
         UserStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

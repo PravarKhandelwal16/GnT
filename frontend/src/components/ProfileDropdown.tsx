@@ -104,7 +104,6 @@ export const ProfileDropdown: React.FC = () => {
       label: 'My Listings',
       icon: <List size={15} />,
       path: '/listings',
-      badge: 12,
     },
     {
       id: 'orders',
@@ -123,7 +122,6 @@ export const ProfileDropdown: React.FC = () => {
       label: 'Notifications',
       icon: <Bell size={15} />,
       path: '/notifications',
-      badge: 3,
       dividerBefore: true,
     },
     {

@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { Button } from '../components/Button';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
+import { getMyProfile, updateMyProfile, requestAccountDeletionOtp, confirmAccountDeletion } from '../api/profile';
+import type { UserProfile } from '../api/profile';
+import { getMyProducts } from '../api/products';
+import { getMyTransactions } from '../api/transactions';
 import {
   User,
   Mail,
@@ -20,27 +24,9 @@ import {
   Save,
   Eye,
   EyeOff,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
-
-/* ─── Types ─── */
-interface StatCard {
-  label: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: string;
-}
-
-interface EditForm {
-  fullName: string;
-  mobile: string;
-  address: string;
-}
-
-interface PasswordForm {
-  current: string;
-  next: string;
-  confirm: string;
-}
 
 /* ─── Sub-components ─── */
 const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({
@@ -52,58 +38,158 @@ const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }>
     <span className="flex-shrink-0 mt-0.5 text-textMain-secondary">{icon}</span>
     <div className="min-w-0">
       <p className="text-xs text-textMain-secondary mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-textMain truncate">{value}</p>
+      <p className="text-sm font-medium text-textMain truncate">{value || '—'}</p>
     </div>
   </div>
 );
 
 /* ─── Main Component ─── */
 export const Account: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
+  /* Profile data from backend */
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const [itemsCount, setItemsCount] = useState<number | null>(null);
+  const [tradesCount, setTradesCount] = useState<number | null>(null);
+
+  /* Modals */
   const [editOpen, setEditOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNext, setShowNext] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const [editForm, setEditForm] = useState<EditForm>({
-    fullName: user?.name ?? '',
-    mobile: '+91 98765 43210',
-    address: '42, Park Street, Mumbai, 400001',
+  /* Delete Account */
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<'WARNING' | 'OTP'>('WARNING');
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+
+  /* Edit form state — synced with profile on open */
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    phone: '',
+    street: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: '',
   });
 
-  const [pwForm, setPwForm] = useState<PasswordForm>({
-    current: '',
-    next: '',
-    confirm: '',
-  });
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
 
-  const stats: StatCard[] = [
-    {
-      label: 'Credits',
-      value: '1,240',
-      icon: <TrendingUp size={18} />,
-      color: 'bg-warning/10 text-warning',
-    },
-    {
-      label: 'Items Listed',
-      value: 12,
-      icon: <Package size={18} />,
-      color: 'bg-primary/10 text-primary',
-    },
-    {
-      label: 'Trades Done',
-      value: 8,
-      icon: <ArrowLeftRight size={18} />,
-      color: 'bg-success/10 text-success',
-    },
-    {
-      label: 'Rating',
-      value: '4.8',
-      icon: <Star size={18} />,
-      color: 'bg-warning/10 text-warning',
-    },
-  ];
+  const cleanField = (val?: string | null) => {
+    if (!val) return '';
+    const trimmed = val.trim();
+    if (trimmed.toLowerCase() === 'string' || trimmed.toLowerCase() === 'unknown') return '';
+    return trimmed;
+  };
+
+  /* Fetch profile on mount */
+  useEffect(() => {
+    setProfileLoading(true);
+    
+    Promise.all([
+      getMyProfile(),
+      getMyProducts(0, 1),
+      getMyTransactions(0, 1)
+    ])
+      .then(([p, productsRes, tradesRes]) => {
+        setProfile(p);
+        setEditForm({
+          fullName: p.name,
+          phone: cleanField(p.phone),
+          street: cleanField(p.street),
+          city: cleanField(p.city),
+          state: cleanField(p.state),
+          postalCode: cleanField(p.postalCode),
+          country: cleanField(p.country),
+        });
+        setItemsCount(productsRes.totalElements);
+        setTradesCount(tradesRes.totalElements);
+      })
+      .catch(() => setProfileError('Failed to load profile or stats.'))
+      .finally(() => setProfileLoading(false));
+  }, []);
+
+  const openEdit = () => {
+    if (profile) {
+      setEditForm({
+        fullName: profile.name,
+        phone: cleanField(profile.phone),
+        street: cleanField(profile.street),
+        city: cleanField(profile.city),
+        state: cleanField(profile.state),
+        postalCode: cleanField(profile.postalCode),
+        country: cleanField(profile.country),
+      });
+    }
+    setSaveError('');
+    setSaveSuccess(false);
+    setEditOpen(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    setSaveSuccess(false);
+    try {
+      const updated = await updateMyProfile({
+        name: editForm.fullName,
+        phone: editForm.phone,
+        street: editForm.street,
+        city: editForm.city,
+        state: editForm.state,
+        postalCode: editForm.postalCode,
+        country: editForm.country,
+      });
+      setProfile(updated);
+      await refreshUser(); // sync AuthContext user name/initials
+      setSaveSuccess(true);
+      setTimeout(() => setEditOpen(false), 1000);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Failed to save changes.';
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestOtp = async () => {
+    setOtpLoading(true);
+    setOtpError('');
+    try {
+      await requestAccountDeletionOtp();
+      setDeleteStep('OTP');
+    } catch (err: unknown) {
+      setOtpError('Failed to send OTP.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    setOtpLoading(true);
+    setOtpError('');
+    try {
+      await confirmAccountDeletion(otp);
+      // Wait a moment and then logout
+      alert('Account deleted successfully. Logging out.');
+      useAuth().logout(); // This might error since we can't call hooks directly in callbacks, but we can call user.logout or just window.location.href = '/'
+      window.location.href = '/';
+    } catch (err: unknown) {
+      setOtpError('Invalid OTP or failed to delete account.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -113,6 +199,47 @@ export const Account: React.FC = () => {
     );
   }
 
+  const addressParts = [
+    cleanField(profile?.street),
+    cleanField(profile?.city),
+    cleanField(profile?.state),
+    cleanField(profile?.postalCode),
+    cleanField(profile?.country)
+  ].filter(Boolean);
+
+  const address = addressParts.length > 0 ? addressParts.join(', ') : 'Not specified';
+
+  const ratingValue = profile?.rating ?? null;
+  const ratingDisplay = ratingValue ? ratingValue.toFixed(1) : 'N/A';
+  const ratingStars = ratingValue ? Math.round(ratingValue) : 0;
+
+  const stats = [
+    {
+      label: 'Credits',
+      value: profile?.creditBalance?.toLocaleString() ?? user.creditBalance?.toLocaleString() ?? '—',
+      icon: <TrendingUp size={18} />,
+      color: 'bg-warning/10 text-warning',
+    },
+    {
+      label: 'Rating',
+      value: ratingDisplay,
+      icon: <Star size={18} />,
+      color: 'bg-warning/10 text-warning',
+    },
+    {
+      label: 'Trades',
+      value: tradesCount !== null ? tradesCount.toString() : '—',
+      icon: <ArrowLeftRight size={18} />,
+      color: 'bg-success/10 text-success',
+    },
+    {
+      label: 'Items',
+      value: itemsCount !== null ? itemsCount.toString() : '—',
+      icon: <Package size={18} />,
+      color: 'bg-primary/10 text-primary',
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background transition-colors duration-200">
       <Navbar />
@@ -120,14 +247,30 @@ export const Account: React.FC = () => {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         <h1 className="text-2xl font-bold text-textMain">My Account</h1>
 
+        {/* Profile error */}
+        {profileError && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-sm">
+            <AlertCircle size={16} />
+            {profileError}
+          </div>
+        )}
+
         {/* ── Profile hero card ── */}
         <div className="bg-card border border-border rounded-[20px] p-6 sm:p-8 shadow-soft">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-24 h-24 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center shadow-soft">
-                <span className="text-primary font-bold text-3xl select-none">{user.initials}</span>
-              </div>
+              {profile?.profileImage ? (
+                <img
+                  src={profile.profileImage}
+                  alt={user.name}
+                  className="w-24 h-24 rounded-full object-cover border-2 border-primary/30 shadow-soft"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center shadow-soft">
+                  <span className="text-primary font-bold text-3xl select-none">{user.initials}</span>
+                </div>
+              )}
               <button
                 id="account-change-avatar"
                 aria-label="Change avatar"
@@ -140,11 +283,13 @@ export const Account: React.FC = () => {
             {/* Info */}
             <div className="flex-1 text-center sm:text-left">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                <h2 className="text-xl font-bold text-textMain">{user.name}</h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-success/10 text-success text-xs font-semibold border border-success/20">
-                  <CheckCircle2 size={11} />
-                  Verified
-                </span>
+                <h2 className="text-xl font-bold text-textMain">{profile?.name ?? user.name}</h2>
+                {profile?.emailVerified && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-success/10 text-success text-xs font-semibold border border-success/20">
+                    <CheckCircle2 size={11} />
+                    Verified
+                  </span>
+                )}
               </div>
               <p className="text-sm text-textMain-secondary mb-4">{user.email}</p>
 
@@ -154,28 +299,18 @@ export const Account: React.FC = () => {
                   <Star
                     key={s}
                     size={14}
-                    className={s <= 4 ? 'text-warning fill-warning' : 'text-warning fill-warning/30'}
+                    className={s <= ratingStars ? 'text-warning fill-warning' : 'text-textMain-secondary/30'}
                   />
                 ))}
-                <span className="text-xs text-textMain-secondary ml-1">4.8 (23 reviews)</span>
+                <span className="text-xs text-textMain-secondary ml-1">{ratingDisplay}</span>
               </div>
 
               <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  id="account-edit-profile"
-                  onClick={() => setEditOpen(true)}
-                >
+                <Button variant="primary" size="sm" id="account-edit-profile" onClick={openEdit}>
                   <Edit3 size={14} />
                   Edit Profile
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  id="account-change-password"
-                  onClick={() => setPwOpen(true)}
-                >
+                <Button variant="outline" size="sm" id="account-change-password" onClick={() => setPwOpen(true)}>
                   <Lock size={14} />
                   Change Password
                 </Button>
@@ -193,7 +328,9 @@ export const Account: React.FC = () => {
                 <div className={`w-9 h-9 rounded-full ${s.color} flex items-center justify-center mb-2`}>
                   {s.icon}
                 </div>
-                <span className="text-lg font-bold text-textMain">{s.value}</span>
+                <span className="text-lg font-bold text-textMain">
+                  {profileLoading ? '—' : s.value}
+                </span>
                 <span className="text-xs text-textMain-secondary mt-0.5">{s.label}</span>
               </div>
             ))}
@@ -206,49 +343,54 @@ export const Account: React.FC = () => {
             <h3 className="text-base font-semibold text-textMain">Personal Details</h3>
             <button
               id="account-edit-details"
-              onClick={() => setEditOpen(true)}
+              onClick={openEdit}
               className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
             >
               <Edit3 size={12} /> Edit
             </button>
           </div>
-          <div className="divide-y divide-border">
-            <InfoRow icon={<User size={16} />} label="Full Name" value={editForm.fullName || user.name} />
-            <InfoRow icon={<Mail size={16} />} label="Email" value={user.email} />
-            <InfoRow icon={<Phone size={16} />} label="Mobile" value={editForm.mobile} />
-            <InfoRow icon={<MapPin size={16} />} label="Address" value={editForm.address} />
-            <InfoRow icon={<Shield size={16} />} label="Account Status" value="Active · Member since Jun 2024" />
-          </div>
+          {profileLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 bg-surface rounded animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              <InfoRow icon={<User size={16} />} label="Full Name" value={profile?.name ?? user.name} />
+              <InfoRow icon={<Mail size={16} />} label="Email" value={user.email} />
+              <InfoRow icon={<Phone size={16} />} label="Mobile" value={cleanField(profile?.phone)} />
+              <InfoRow icon={<MapPin size={16} />} label="Address" value={address} />
+              <InfoRow
+                icon={<Shield size={16} />}
+                label="Account Status"
+                value={`${profile?.status ?? 'Active'} · Member since ${
+                  profile?.createdAt
+                    ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                    : '—'
+                }`}
+              />
+            </div>
+          )}
         </div>
 
-        {/* ── Recent Reviews ── */}
-        <div className="bg-card border border-border rounded-[20px] p-6 sm:p-8 shadow-soft">
-          <h3 className="text-base font-semibold text-textMain mb-4">Recent Reviews</h3>
-          <div className="space-y-4">
-            {[
-              { name: 'Alex G.', rating: 5, text: 'Great seller! Item was exactly as described. Super smooth exchange.', date: 'Jun 18, 2024' },
-              { name: 'Sarah M.', rating: 4, text: 'Good communication, item in good condition. Would trade again.', date: 'Jun 10, 2024' },
-              { name: 'Rahul K.', rating: 5, text: 'Perfect condition item and very responsive. Highly recommend!', date: 'May 28, 2024' },
-            ].map((review) => (
-              <div key={review.name} className="bg-surface rounded-xl p-4 border border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-bold text-primary">{review.name[0]}</span>
-                    </div>
-                    <span className="text-sm font-medium text-textMain">{review.name}</span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    {[1,2,3,4,5].map((s) => (
-                      <Star key={s} size={11} className={s <= review.rating ? 'text-warning fill-warning' : 'text-textMain-secondary/30 fill-textMain-secondary/10'} />
-                    ))}
-                    <span className="text-xs text-textMain-secondary ml-1">{review.date}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-textMain-secondary leading-relaxed">{review.text}</p>
-              </div>
-            ))}
-          </div>
+        {/* ── Danger Zone ── */}
+        <div className="bg-card border border-danger/20 rounded-[20px] p-6 sm:p-8 shadow-soft mt-8">
+          <h3 className="text-base font-semibold text-danger mb-2">Danger Zone</h3>
+          <p className="text-sm text-textMain-secondary mb-4">
+            Once you delete your account, there is no going back. Please be certain.
+          </p>
+          <button
+            onClick={() => {
+              setDeleteStep('WARNING');
+              setOtp('');
+              setOtpError('');
+              setDeleteOpen(true);
+            }}
+            className="px-4 py-2 bg-danger/10 text-danger rounded-xl font-medium text-sm hover:bg-danger/20 transition-colors"
+          >
+            Delete Account
+          </button>
         </div>
       </main>
 
@@ -256,10 +398,10 @@ export const Account: React.FC = () => {
       {editOpen && (
         <div
           id="account-edit-modal-backdrop"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-modal-in"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setEditOpen(false)}
         >
-          <div className="bg-surface border border-border rounded-[20px] shadow-soft w-full max-w-md p-6">
+          <div className="bg-surface border border-border rounded-[20px] shadow-soft w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-textMain">Edit Profile</h2>
               <button
@@ -271,46 +413,43 @@ export const Account: React.FC = () => {
                 <X size={16} />
               </button>
             </div>
+
+            {saveError && (
+              <div className="mb-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                <AlertCircle size={14} /> {saveError}
+              </div>
+            )}
+            {saveSuccess && (
+              <div className="mb-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-success/10 border border-success/20 text-success text-sm">
+                <CheckCircle2 size={14} /> Profile saved!
+              </div>
+            )}
+
             <div className="space-y-4">
-              <div>
-                <label htmlFor="edit-full-name" className="block text-xs font-medium text-textMain-secondary mb-1.5">
-                  Full Name
-                </label>
-                <input
-                  id="edit-full-name"
-                  type="text"
-                  value={editForm.fullName}
-                  onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-textMain placeholder-textMain-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                  placeholder="Your full name"
-                />
-              </div>
-              <div>
-                <label htmlFor="edit-mobile" className="block text-xs font-medium text-textMain-secondary mb-1.5">
-                  Mobile Number
-                </label>
-                <input
-                  id="edit-mobile"
-                  type="tel"
-                  value={editForm.mobile}
-                  onChange={(e) => setEditForm((f) => ({ ...f, mobile: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-textMain placeholder-textMain-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                  placeholder="+91 00000 00000"
-                />
-              </div>
-              <div>
-                <label htmlFor="edit-address" className="block text-xs font-medium text-textMain-secondary mb-1.5">
-                  Address
-                </label>
-                <textarea
-                  id="edit-address"
-                  rows={3}
-                  value={editForm.address}
-                  onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-textMain placeholder-textMain-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
-                  placeholder="Your full address"
-                />
-              </div>
+              {[
+                { id: 'edit-full-name', label: 'Full Name', field: 'fullName', type: 'text', placeholder: 'Your full name' },
+                { id: 'edit-phone', label: 'Phone', field: 'phone', type: 'tel', placeholder: '+91 00000 00000' },
+                { id: 'edit-street', label: 'Street', field: 'street', type: 'text', placeholder: '42 Park Street' },
+                { id: 'edit-city', label: 'City', field: 'city', type: 'text', placeholder: 'Mumbai' },
+                { id: 'edit-state', label: 'State', field: 'state', type: 'text', placeholder: 'Maharashtra' },
+                { id: 'edit-postal', label: 'Postal Code', field: 'postalCode', type: 'text', placeholder: '400001' },
+                { id: 'edit-country', label: 'Country', field: 'country', type: 'text', placeholder: 'India' },
+              ].map(({ id, label, field, type, placeholder }) => (
+                <div key={id}>
+                  <label htmlFor={id} className="block text-xs font-medium text-textMain-secondary mb-1.5">
+                    {label}
+                  </label>
+                  <input
+                    id={id}
+                    type={type}
+                    value={editForm[field as keyof typeof editForm]}
+                    onChange={(e) => setEditForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-textMain placeholder-textMain-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
+
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditOpen(false)}>
                   Cancel
@@ -320,10 +459,11 @@ export const Account: React.FC = () => {
                   size="sm"
                   className="flex-1"
                   id="account-edit-save"
-                  onClick={() => setEditOpen(false)}
+                  onClick={handleSave}
+                  disabled={saving}
                 >
-                  <Save size={14} />
-                  Save Changes
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {saving ? 'Saving…' : 'Save Changes'}
                 </Button>
               </div>
             </div>
@@ -335,7 +475,7 @@ export const Account: React.FC = () => {
       {pwOpen && (
         <div
           id="account-pw-modal-backdrop"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-modal-in"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setPwOpen(false)}
         >
           <div className="bg-surface border border-border rounded-[20px] shadow-soft w-full max-w-md p-6">
@@ -369,7 +509,7 @@ export const Account: React.FC = () => {
                     type="button"
                     onClick={() => setShowCurrent((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-textMain-secondary hover:text-textMain transition-colors"
-                    aria-label="Toggle current password visibility"
+                    aria-label="Toggle visibility"
                   >
                     {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -393,13 +533,13 @@ export const Account: React.FC = () => {
                     type="button"
                     onClick={() => setShowNext((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-textMain-secondary hover:text-textMain transition-colors"
-                    aria-label="Toggle new password visibility"
+                    aria-label="Toggle visibility"
                   >
                     {showNext ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
               </div>
-              {/* Confirm Password */}
+              {/* Confirm */}
               <div>
                 <label htmlFor="pw-confirm" className="block text-xs font-medium text-textMain-secondary mb-1.5">
                   Confirm New Password
@@ -429,6 +569,94 @@ export const Account: React.FC = () => {
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Account Modal ── */}
+      {deleteOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div className="bg-surface border border-danger/30 rounded-[20px] shadow-soft w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-danger flex items-center gap-2">
+                <AlertCircle size={18} /> Delete Account
+              </h2>
+              <button
+                onClick={() => setDeleteOpen(false)}
+                className="p-1.5 rounded-lg text-textMain-secondary hover:text-textMain hover:bg-card transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {otpError && (
+              <div className="mb-4 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
+                <AlertCircle size={14} /> {otpError}
+              </div>
+            )}
+
+            {deleteStep === 'WARNING' ? (
+              <div className="space-y-4">
+                <p className="text-sm text-textMain">
+                  Deleting your account will permanently remove all your active listings and forfeit your current credit balance ({profile?.creditBalance ?? 0} credits).
+                </p>
+                <p className="text-sm font-semibold text-danger">
+                  This action cannot be undone.
+                </p>
+                <div className="flex gap-3 pt-4">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setDeleteOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="flex-1 bg-danger hover:bg-danger-hover border-danger"
+                    onClick={handleRequestOtp}
+                    disabled={otpLoading}
+                  >
+                    {otpLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                    Request OTP
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-textMain">
+                  We've logged an OTP to the backend console (for this demo). Please enter the 6-digit code below to confirm deletion.
+                </p>
+                <div>
+                  <label htmlFor="otp-input" className="block text-xs font-medium text-textMain-secondary mb-1.5">
+                    OTP Code
+                  </label>
+                  <input
+                    id="otp-input"
+                    type="text"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-textMain placeholder-textMain-secondary focus:outline-none focus:ring-2 focus:ring-danger/50 focus:border-danger transition-all text-center tracking-widest font-mono text-lg"
+                    placeholder="------"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setDeleteOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="flex-1 bg-danger hover:bg-danger-hover border-danger"
+                    onClick={handleConfirmDelete}
+                    disabled={otpLoading || otp.length < 6}
+                  >
+                    {otpLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                    Confirm Delete
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

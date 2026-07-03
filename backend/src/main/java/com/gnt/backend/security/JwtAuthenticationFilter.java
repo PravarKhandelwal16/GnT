@@ -44,13 +44,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
+        System.out.println("JwtFilter: Processing request " + request.getRequestURI());
+        System.out.println("JwtFilter: Auth header: " + authHeader);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String jwt = authHeader.substring(7);
+        final String jwt = authHeader.substring(7).trim();
 
         try {
             final String userEmail = jwtService.extractUsername(jwt);
@@ -66,13 +68,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     userDetails.getAuthorities()
                             );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    
+                    // Spring Security 6 best practice: create a new context
+                    org.springframework.security.core.context.SecurityContext context = 
+                            SecurityContextHolder.createEmptyContext();
+                    context.setAuthentication(authToken);
+                    SecurityContextHolder.setContext(context);
                 }
             }
-        } catch (JwtException | IllegalArgumentException ex) {
-            // Log the exception to see why token parsing fails
+        } catch (Exception ex) {
             System.err.println("JWT Validation failed: " + ex.getMessage());
-            // Invalid token — leave SecurityContext empty; entry point handles the 401
+            ex.printStackTrace();
         }
 
         filterChain.doFilter(request, response);

@@ -6,6 +6,8 @@ import com.gnt.backend.transaction.dto.TransactionInitiateRequest;
 import com.gnt.backend.transaction.dto.TransactionResponse;
 import com.gnt.backend.transaction.service.TransactionService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -48,6 +50,13 @@ public class TransactionController {
             @Valid @RequestBody QrScanRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(transactionService.sellerConfirm(request.qrToken(), userPrincipal.getId()));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<Page<TransactionResponse>> getMyTransactions(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            Pageable pageable) {
+        return ResponseEntity.ok(transactionService.getMyTransactions(userPrincipal.getId(), pageable));
     }
 
     @PostMapping("/{id}/cancel")

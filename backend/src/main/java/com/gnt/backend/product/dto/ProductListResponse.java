@@ -2,6 +2,7 @@ package com.gnt.backend.product.dto;
 
 import com.gnt.backend.domain.enums.Category;
 import com.gnt.backend.domain.enums.Condition;
+import com.gnt.backend.domain.enums.ProductStatus;
 
 import java.time.LocalDateTime;
 
@@ -12,5 +13,6 @@ public record ProductListResponse(
         Condition condition,
         Integer creditValue,
         String primaryMediaUrl,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        ProductStatus status
 ) {}

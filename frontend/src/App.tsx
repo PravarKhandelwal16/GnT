@@ -14,6 +14,7 @@ import { AddItem } from './pages/AddItem';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { AuthModal } from './components/AuthModal';
+import { useDarkMode } from './hooks/useDarkMode';
 
 /* ── Protected route: redirects guests to /login ── */
 const ProtectedRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
@@ -48,6 +49,7 @@ const GuestRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
 /* ── Inner shell that has access to auth state ── */
 function AppShell() {
   const { isAuthenticated } = useAuth();
+  useDarkMode(); // Initialize global theme
 
   return (
     <AuthModalProvider isAuthenticated={isAuthenticated}>

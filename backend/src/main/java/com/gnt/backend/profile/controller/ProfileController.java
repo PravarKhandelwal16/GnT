@@ -41,4 +41,29 @@ public class ProfileController {
             Pageable pageable) {
         return ResponseEntity.ok(profileService.getCreditHistory(userPrincipal.getId(), pageable));
     }
+
+    @PostMapping("/mark-welcome-seen")
+    public ResponseEntity<Void> markWelcomeSeen(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        profileService.markWelcomeSeen(userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/delete/request-otp")
+    public ResponseEntity<java.util.Map<String, String>> requestAccountDeletionOtp(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String otp = profileService.requestAccountDeletion(userPrincipal.getId());
+        // For the MVP, we return the OTP in the response for easy testing.
+        return ResponseEntity.ok(java.util.Map.of("otp", otp, "message", "OTP sent successfully (mocked)"));
+    }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<Void> confirmAccountDeletion(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody java.util.Map<String, String> body) {
+        String otp = body.get("otp");
+        if (otp == null || otp.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        profileService.confirmAccountDeletion(userPrincipal.getId(), otp);
+        return ResponseEntity.ok().build();
+    }
 }

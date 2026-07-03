@@ -13,10 +13,14 @@ import java.util.stream.Collectors;
 @Component
 public class ProductMapper {
 
-    public ProductResponse toResponse(Product product) {
+    public ProductResponse toResponse(Product product, boolean canSeeFullAddress) {
         List<ProductMediaResponse> mediaResponses = product.getMedia().stream()
                 .map(this::toMediaResponse)
                 .collect(Collectors.toList());
+
+        String street = canSeeFullAddress ? product.getStreet() : null;
+        String postalCode = canSeeFullAddress ? product.getPostalCode() : null;
+        String sellerPhone = canSeeFullAddress ? product.getOwner().getPhone() : null;
 
         return new ProductResponse(
                 product.getId(),
@@ -27,7 +31,12 @@ public class ProductMapper {
                 product.getCategory(),
                 product.getCondition(),
                 product.getCreditValue(),
-                product.getPickupAddress(),
+                street,
+                product.getCity(),
+                product.getState(),
+                postalCode,
+                product.getCountry(),
+                sellerPhone,
                 product.getStatus(),
                 mediaResponses,
                 product.getCreatedAt(),
@@ -49,7 +58,8 @@ public class ProductMapper {
                 product.getCondition(),
                 product.getCreditValue(),
                 primaryMediaUrl,
-                product.getCreatedAt()
+                product.getCreatedAt(),
+                product.getStatus()
         );
     }
 

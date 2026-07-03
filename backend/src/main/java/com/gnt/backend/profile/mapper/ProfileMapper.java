@@ -24,6 +24,7 @@ public class ProfileMapper {
                 user.getRating() != null ? user.getRating().doubleValue() : 0.0,
                 user.isEmailVerified(),
                 user.isPhoneVerified(),
+                user.isHasSeenWelcome(),
                 user.getStatus(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()

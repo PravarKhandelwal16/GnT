@@ -1,105 +1,114 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MarketProductCard } from '../components/MarketProductCard';
 import { Navbar } from '../components/Navbar';
 import { MarketCardSkeleton } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
-import { Search, SlidersHorizontal, Monitor, Home, Shirt, Dumbbell, BookOpen } from 'lucide-react';
+import {
+  Search,
+  SlidersHorizontal,
+  Monitor,
+  Home,
+  Shirt,
+  Dumbbell,
+  BookOpen,
+  Music,
+  Utensils,
+  Box,
+} from 'lucide-react';
+import { getProducts } from '../api/products';
+import type { Category, ProductListItem } from '../api/products';
 
-const CATEGORIES = [
-  { name: 'All Items', icon: null },
-  { name: 'Electronics', icon: Monitor },
-  { name: 'Home', icon: Home },
-  { name: 'Fashion', icon: Shirt },
-  { name: 'Sports', icon: Dumbbell },
-  { name: 'Books', icon: BookOpen },
+/* ─── Category map ─── */
+type CategoryFilter = Category | 'ALL';
+
+const CATEGORIES: Array<{ id: CategoryFilter; name: string; icon: React.ComponentType<{ className?: string }> | null }> = [
+  { id: 'ALL', name: 'All Items', icon: null },
+  { id: 'ELECTRONICS', name: 'Electronics', icon: Monitor },
+  { id: 'HOME_AND_GARDEN', name: 'Home', icon: Home },
+  { id: 'CLOTHING', name: 'Fashion', icon: Shirt },
+  { id: 'SPORTS', name: 'Sports', icon: Dumbbell },
+  { id: 'BOOKS', name: 'Books', icon: BookOpen },
+  { id: 'MUSIC', name: 'Music', icon: Music },
+  { id: 'KITCHEN', name: 'Kitchen', icon: Utensils },
+  { id: 'OTHER', name: 'Other', icon: Box },
 ];
 
-const ITEMS = [
-  { 
-    id: 1, 
-    title: 'Vintage Espresso Maker', 
-    credits: 120, 
-    location: 'Portland, OR', 
-    condition: 'Excellent Condition', 
-    image: 'https://images.unsplash.com/photo-1510227272981-87123e259b17?q=80&w=2940&auto=format&fit=crop' 
-  },
-  { 
-    id: 2, 
-    title: 'Mid-Century Lounge Chair', 
-    credits: 450, 
-    location: 'Seattle, WA', 
-    condition: 'Good - Minor Wear', 
-    image: 'https://images.unsplash.com/photo-1506898667547-42e22a46e125?q=80&w=2806&auto=format&fit=crop' 
-  },
-  { 
-    id: 3, 
-    title: 'Custom Mechanical Keyboard', 
-    credits: 85, 
-    location: 'Austin, TX', 
-    condition: 'Like New', 
-    image: 'https://images.unsplash.com/photo-1595225476474-87563907a212?q=80&w=2942&auto=format&fit=crop' 
-  },
-  { 
-    id: 4, 
-    title: 'Sony A7III Mirrorless Camera', 
-    credits: 1200, 
-    location: 'New York, NY', 
-    condition: 'Excellent Condition', 
-    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=3000&auto=format&fit=crop' 
-  },
-  { 
-    id: 5, 
-    title: 'Large Potted Monstera', 
-    credits: 25, 
-    location: 'Denver, CO', 
-    condition: 'Thriving', 
-    image: 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?q=80&w=2864&auto=format&fit=crop' 
-  },
-  { 
-    id: 6, 
-    title: 'Vintage Denim Jacket', 
-    credits: 60, 
-    location: 'Chicago, IL', 
-    condition: 'Good - Worn In', 
-    image: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?q=80&w=2787&auto=format&fit=crop' 
-  },
-];
+const CONDITION_LABELS: Record<string, string> = {
+  NEW: 'New',
+  LIKE_NEW: 'Like New',
+  GOOD: 'Good',
+  FAIR: 'Fair',
+  POOR: 'Poor',
+};
 
 export const Market: React.FC = () => {
-  const [activeCategory, setActiveCategory] = useState('All Items');
-  
-  // Demonstration states for Loading, Error, and Empty
-  const [uiState, setUiState] = useState<'loading' | 'error' | 'empty' | 'success'>('loading');
+  const [searchParams] = useSearchParams();
+  const initialCategory = (searchParams.get('category') as CategoryFilter) || 'ALL';
+  const initialQuery = searchParams.get('query') || '';
 
-  // Simulate an initial load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setUiState('success');
-    }, 1500);
-    return () => clearTimeout(timer);
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory);
+  const [search, setSearch] = useState(initialQuery);
+  const [products, setProducts] = useState<ProductListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchProducts = useCallback(async (category: CategoryFilter, pageNum: number, replace: boolean) => {
+    try {
+      if (replace) setIsLoading(true);
+      else setLoadingMore(true);
+      setIsError(false);
+
+      const result = await getProducts({
+        ...(category !== 'ALL' && { category: category as Category }),
+        page: pageNum,
+        size: 12,
+      });
+
+      setProducts((prev) => replace ? result.content : [...prev, ...result.content]);
+      setHasMore(!result.last);
+      setPage(result.number);
+    } catch {
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+      setLoadingMore(false);
+    }
   }, []);
 
-  const handleRetry = () => {
-    setUiState('loading');
-    setTimeout(() => setUiState('success'), 1500);
-  };
+  useEffect(() => {
+    fetchProducts(activeCategory, 0, true);
+  }, [activeCategory, fetchProducts]);
+
+  const handleRetry = () => fetchProducts(activeCategory, 0, true);
+
+  /* Client-side title search filter */
+  const filtered = search.trim()
+    ? products.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
+    : products;
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-200">
       <Navbar />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        
+
         {/* Search Bar */}
         <div className="relative max-w-3xl mx-auto">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-6 w-6 text-textMain-secondary" />
           </div>
-          <input 
-            type="text" 
+          <input
+            id="market-search"
+            type="text"
             className="block w-full pl-12 pr-14 py-4 bg-card border border-border rounded-[20px] text-lg shadow-soft hover:shadow-soft-hover focus:ring-2 focus:ring-primary/50 focus:border-primary text-textMain placeholder-textMain-secondary transition-all duration-300 outline-none"
             placeholder="What are you looking for today?"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <div className="absolute inset-y-0 right-2 flex items-center">
             <button className="p-2.5 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-colors">
@@ -112,14 +121,15 @@ export const Market: React.FC = () => {
         <div className="flex flex-wrap gap-3">
           {CATEGORIES.map((category) => {
             const Icon = category.icon;
-            const isActive = activeCategory === category.name;
+            const isActive = activeCategory === category.id;
             return (
               <button
-                key={category.name}
-                onClick={() => setActiveCategory(category.name)}
+                key={category.id}
+                id={`market-cat-${category.id.toLowerCase()}`}
+                onClick={() => setActiveCategory(category.id)}
                 className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 flex items-center gap-2 border shadow-sm ${
-                  isActive 
-                    ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(91,124,250,0.3)]' 
+                  isActive
+                    ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(91,124,250,0.3)]'
                     : 'bg-surface text-textMain-secondary border-border hover:bg-card hover:text-textMain'
                 }`}
               >
@@ -130,25 +140,9 @@ export const Market: React.FC = () => {
           })}
         </div>
 
-        {/* Development UI State Toggles (For preview purposes) */}
-        <div className="flex gap-2 p-4 bg-surface rounded-xl border border-border overflow-x-auto">
-          <span className="text-xs font-bold text-textMain-secondary uppercase flex items-center mr-2">Demo States:</span>
-          {['loading', 'success', 'empty', 'error'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setUiState(s as any)}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                uiState === s ? 'bg-primary text-white' : 'bg-background text-textMain hover:bg-card border border-border'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
         {/* Product Grid / States */}
         <div className="pt-2">
-          {uiState === 'loading' && (
+          {isLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {Array.from({ length: 8 }).map((_, i) => (
                 <MarketCardSkeleton key={i} />
@@ -156,28 +150,51 @@ export const Market: React.FC = () => {
             </div>
           )}
 
-          {uiState === 'error' && (
-            <ErrorState 
-              onRetry={handleRetry} 
-              message="We couldn't fetch the market listings right now. Please check your connection and try again." 
+          {!isLoading && isError && (
+            <ErrorState
+              onRetry={handleRetry}
+              message="We couldn't fetch the market listings right now. Please check your connection and try again."
             />
           )}
 
-          {uiState === 'empty' && (
-            <EmptyState 
-              title="No Items Found" 
-              description="It looks like there aren't any items in this category yet. Be the first to list something!" 
+          {!isLoading && !isError && filtered.length === 0 && (
+            <EmptyState
+              title="No Items Found"
+              description="It looks like there aren't any items in this category yet. Be the first to list something!"
               actionLabel="List an Item"
-              onAction={() => window.location.href = '/add-item'}
+              onAction={() => (window.location.href = '/add-item')}
             />
           )}
 
-          {uiState === 'success' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {ITEMS.map(product => (
-                <MarketProductCard key={product.id} {...product} />
-              ))}
-            </div>
+          {!isLoading && !isError && filtered.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filtered.map((product) => (
+                  <MarketProductCard
+                    key={product.id}
+                    id={product.id}
+                    title={product.title}
+                    credits={product.creditValue}
+                    location="View Details"
+                    condition={CONDITION_LABELS[product.condition] ?? product.condition}
+                    image={product.primaryMediaUrl ?? `https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop`}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="flex justify-center mt-10">
+                  <button
+                    id="market-load-more"
+                    onClick={() => fetchProducts(activeCategory, page + 1, false)}
+                    disabled={loadingMore}
+                    className="px-8 py-3 bg-card border border-border rounded-full text-sm font-medium text-textMain hover:border-primary/30 hover:text-primary transition-all disabled:opacity-60"
+                  >
+                    {loadingMore ? 'Loading…' : 'Load More'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

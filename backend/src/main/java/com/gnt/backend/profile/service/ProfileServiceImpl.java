@@ -60,6 +60,36 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Transactional
+    public void markWelcomeSeen(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setHasSeenWelcome(true);
+        userRepository.save(user);
+    }
+
+    @Override
+    public String requestAccountDeletion(Long userId) {
+        // Mock OTP generation
+        String otp = "123456";
+        System.out.println("MOCK OTP for user " + userId + " account deletion: " + otp);
+        return otp; // Return it just for testing convenience, in reality this would be emailed
+    }
+
+    @Override
+    @Transactional
+    public void confirmAccountDeletion(Long userId, String otp) {
+        if (!"123456".equals(otp)) {
+            throw new RuntimeException("Invalid OTP");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        user.setStatus(com.gnt.backend.domain.enums.UserStatus.DELETED);
+        userRepository.save(user);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<CreditHistory> getCreditHistory(Long userId, Pageable pageable) {
         return creditHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);

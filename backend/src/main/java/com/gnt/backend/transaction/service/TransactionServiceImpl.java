@@ -14,6 +14,8 @@ import com.gnt.backend.transaction.dto.TransactionInitiateRequest;
 import com.gnt.backend.transaction.dto.TransactionResponse;
 import com.gnt.backend.transaction.mapper.TransactionMapper;
 import com.gnt.backend.transaction.repository.TransactionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -207,9 +209,9 @@ public class TransactionServiceImpl implements TransactionService {
             product.setStatus(ProductStatus.EXCHANGED);
             productRepository.save(product);
 
-            // Give seller the remaining 50% credits (assuming total is creditValue)
+            // Give seller the remaining 60% credits (assuming total is creditValue)
             User seller = tx.getSeller();
-            int remainingBonus = tx.getCreditsUsed() - (tx.getCreditsUsed() / 2);
+            int remainingBonus = (int) (tx.getCreditsUsed() * 0.6);
             seller.setCreditBalance(seller.getCreditBalance() + remainingBonus);
             userRepository.save(seller);
 
@@ -218,8 +220,15 @@ public class TransactionServiceImpl implements TransactionService {
             completeBonus.setTransaction(tx);
             completeBonus.setAmount(remainingBonus);
             completeBonus.setTransactionType(CreditHistoryType.PRODUCT_COMPLETED);
-            completeBonus.setDescription("Received final 50% credit value for completed exchange: " + product.getTitle());
+            completeBonus.setDescription("Received final 60% credit value for completed exchange: " + product.getTitle());
             creditHistoryRepository.save(completeBonus);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TransactionResponse> getMyTransactions(Long userId, Pageable pageable) {
+        return transactionRepository.findAllByUserId(userId, pageable)
+                .map(transactionMapper::toResponse);
     }
 }

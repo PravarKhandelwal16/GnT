@@ -1,13 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiClient, storeToken, clearToken, TOKEN_KEY } from '../api/client';
+import { getMyProfile } from '../api/profile';
+import type { UserProfile } from '../api/profile';
 
 /* ─────────────────────── types ─────────────────────── */
 
 export interface AuthUser {
-  id: string;
+  id: number;
   name: string;
   shortName: string;
   email: string;
   initials: string;
+  creditBalance: number;
+  rating: number | null;
+  profileImage: string | null;
+  hasSeenWelcome: boolean;
 }
 
 interface AuthContextValue {
@@ -17,36 +24,23 @@ interface AuthContextValue {
   login: (email: string, password: string, remember: boolean) => Promise<void>;
   signup: (fields: SignupFields) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 export interface SignupFields {
   fullName: string;
-  age: string;
-  mobile: string;
   email: string;
-  address: string;
+  mobile: string;
   password: string;
+  dateOfBirth: string; // ISO date string e.g. "1998-06-15"
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
 }
 
 /* ─────────────────────── helpers ─────────────────────── */
-
-const STORAGE_KEY = 'gnt_token';
-
-/** Build a fake JWT-style token string (base64 payload only — no real sig). */
-function encodeToken(user: AuthUser): string {
-  const payload = btoa(JSON.stringify(user));
-  return `mock.${payload}.sig`;
-}
-
-function decodeToken(token: string): AuthUser | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    return JSON.parse(atob(parts[1])) as AuthUser;
-  } catch {
-    return null;
-  }
-}
 
 function deriveInitials(name: string): string {
   return name
@@ -60,6 +54,20 @@ function deriveShortName(name: string): string {
   return name.split(' ')[0] ?? name;
 }
 
+function profileToAuthUser(profile: UserProfile): AuthUser {
+  return {
+    id: profile.id,
+    name: profile.name,
+    shortName: deriveShortName(profile.name),
+    email: profile.email,
+    initials: deriveInitials(profile.name),
+    creditBalance: profile.creditBalance,
+    rating: profile.rating,
+    profileImage: profile.profileImage,
+    hasSeenWelcome: profile.hasSeenWelcome,
+  };
+}
+
 /* ─────────────────────── context ─────────────────────── */
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -69,6 +77,7 @@ export const AuthContext = createContext<AuthContextValue>({
   login: async () => {},
   signup: async () => {},
   logout: () => {},
+  refreshUser: async () => {},
 });
 
 export const useAuth = (): AuthContextValue => useContext(AuthContext);
@@ -81,60 +90,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /* Restore session on mount */
   useEffect(() => {
+    const handleUnauthorized = () => {
+      clearToken();
+      setUser(null);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+
     const token =
-      localStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(STORAGE_KEY);
-    if (token) {
-      const restored = decodeToken(token);
-      setUser(restored);
+      localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setIsLoading(false);
+    } else {
+      // Token exists — validate by fetching profile
+      getMyProfile()
+        .then((profile) => setUser(profileToAuthUser(profile)))
+        .catch(() => {
+          clearToken();
+        })
+        .finally(() => setIsLoading(false));
     }
-    setIsLoading(false);
+
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
+  }, []);
+
+  /* Re-fetch profile and update user state */
+  const refreshUser = useCallback(async () => {
+    try {
+      const profile = await getMyProfile();
+      setUser(profileToAuthUser(profile));
+    } catch {
+      // ignore; user will still see the last-known state
+    }
   }, []);
 
   const login = useCallback(
-    async (email: string, _password: string, remember: boolean): Promise<void> => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 800));
-
-      const authUser: AuthUser = {
-        id: 'mock-' + Date.now(),
-        name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-        shortName: '',
+    async (email: string, password: string, remember: boolean): Promise<void> => {
+      const res = await apiClient.post<{ token: string }>('/api/auth/login', {
         email,
-        initials: '',
-      };
-      authUser.shortName = deriveShortName(authUser.name);
-      authUser.initials = deriveInitials(authUser.name);
-
-      const token = encodeToken(authUser);
-      if (remember) {
-        localStorage.setItem(STORAGE_KEY, token);
-      } else {
-        sessionStorage.setItem(STORAGE_KEY, token);
-      }
-      setUser(authUser);
+        password,
+      });
+      storeToken(res.data.token, remember);
+      const profile = await getMyProfile();
+      setUser(profileToAuthUser(profile));
     },
     [],
   );
 
   const signup = useCallback(async (fields: SignupFields): Promise<void> => {
-    await new Promise((r) => setTimeout(r, 1000));
-
-    const authUser: AuthUser = {
-      id: 'mock-' + Date.now(),
+    const res = await apiClient.post<{ token: string }>('/api/auth/register', {
       name: fields.fullName,
-      shortName: deriveShortName(fields.fullName),
       email: fields.email,
-      initials: deriveInitials(fields.fullName),
-    };
-
-    const token = encodeToken(authUser);
-    localStorage.setItem(STORAGE_KEY, token);
-    setUser(authUser);
+      phone: fields.mobile,
+      password: fields.password,
+      dateOfBirth: fields.dateOfBirth,
+      street: fields.street ?? null,
+      city: fields.city ?? null,
+      state: fields.state ?? null,
+      postalCode: fields.postalCode ?? null,
+      country: fields.country ?? null,
+    });
+    // Always remember on signup
+    storeToken(res.data.token, true);
+    const profile = await getMyProfile();
+    setUser(profileToAuthUser(profile));
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(STORAGE_KEY);
+    clearToken();
     setUser(null);
   }, []);
 
@@ -147,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         logout,
+        refreshUser,
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 package com.gnt.backend.domain.entity;
 
 import com.gnt.backend.domain.enums.CreditHistoryType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -38,6 +39,7 @@ public class CreditHistory {
 
     // ── References ────────────────────────────────────────────────────────────
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "user_id",
@@ -50,6 +52,7 @@ public class CreditHistory {
      * The exchange transaction that triggered this credit movement.
      * Null for entries not linked to a transaction (e.g. {@code INITIAL_BONUS}).
      */
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "transaction_id",
