@@ -25,7 +25,7 @@ export type ProductStatus =
 
 export interface ProductMedia {
   id: number;
-  imageUrl: string;
+  mediaUrl: string;
   isPrimary: boolean;
   displayOrder: number;
 }

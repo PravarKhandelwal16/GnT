@@ -29,7 +29,7 @@ export const MarketProductCard: React.FC<MarketProductCardProps> = ({
 
   return (
     <Link to={`/product/${id}`} target="_blank" rel="noopener noreferrer" className="flex flex-col bg-card rounded-2xl shadow-soft hover:shadow-soft-hover border border-border overflow-hidden transition-all duration-300 group hover:-translate-y-1">
-      <div className="relative h-56 bg-surface overflow-hidden flex items-center justify-center">
+      <div className="relative h-56 bg-surface overflow-hidden">
         {image ? (
           <img 
             src={image} 
@@ -37,7 +37,7 @@ export const MarketProductCard: React.FC<MarketProductCardProps> = ({
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="text-textMain-secondary/50 font-medium tracking-wide select-none flex flex-col items-center">
+          <div className="w-full h-full flex flex-col items-center justify-center text-textMain-secondary/50 font-medium tracking-wide select-none">
             <span className="text-3xl mb-2">📷</span>
             No Image
           </div>

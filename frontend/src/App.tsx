@@ -11,6 +11,7 @@ import { Account } from './pages/Account';
 import { MyListings } from './pages/MyListings';
 import { Orders } from './pages/Orders';
 import { AddItem } from './pages/AddItem';
+import { Checkout } from './pages/Checkout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { AuthModal } from './components/AuthModal';
@@ -70,6 +71,7 @@ function AppShell() {
         <Route path="/listings" element={<ProtectedRoute element={<MyListings />} />} />
         <Route path="/orders" element={<ProtectedRoute element={<Orders />} />} />
         <Route path="/add-item" element={<ProtectedRoute element={<AddItem />} />} />
+        <Route path="/checkout/:id" element={<ProtectedRoute element={<Checkout />} />} />
       </Routes>
 
       {/* Global auth modal rendered once */}

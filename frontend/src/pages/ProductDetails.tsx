@@ -4,7 +4,6 @@ import { Heart, MapPin, ArrowLeft, Star, BadgeCheck, ChevronLeft, ChevronRight }
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { getProductById, deleteProduct } from '../api/products';
-import { initiateTransaction } from '../api/transactions';
 import type { ProductDetail } from '../api/products';
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -37,8 +36,6 @@ export const ProductDetails: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
-  const [trading, setTrading] = useState(false);
-  const [tradeError, setTradeError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -56,25 +53,13 @@ export const ProductDetails: React.FC = () => {
       });
   }, [id]);
 
-  const handleTrade = async () => {
+  const handleTrade = () => {
     if (!product) return;
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/product/${id}` } });
       return;
     }
-    setTrading(true);
-    setTradeError('');
-    try {
-      const tx = await initiateTransaction(product.id);
-      navigate('/orders', { state: { newTxId: tx.id } });
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Could not initiate trade. Please try again.';
-      setTradeError(msg);
-    } finally {
-      setTrading(false);
-    }
+    navigate(`/checkout/${id}`);
   };
 
   const confirmDeleteProduct = async () => {
@@ -140,7 +125,7 @@ export const ProductDetails: React.FC = () => {
   const isOwner = user?.id === product.ownerId;
   const images =
     product.media.length > 0
-      ? [...product.media].sort((a, b) => a.displayOrder - b.displayOrder).map((m) => m.imageUrl)
+      ? [...product.media].sort((a, b) => a.displayOrder - b.displayOrder).map((m) => m.mediaUrl)
       : ['https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop'];
 
   return (
@@ -308,12 +293,6 @@ export const ProductDetails: React.FC = () => {
               </div>
 
               {/* Error */}
-              {tradeError && (
-                <div className="mb-4 px-4 py-3 rounded-xl bg-danger/10 border border-danger/20 text-danger text-sm">
-                  {tradeError}
-                </div>
-              )}
-
               <div className="space-y-3">
                 {isOwner ? (
                   <div className="space-y-3">
@@ -343,21 +322,13 @@ export const ProductDetails: React.FC = () => {
                   <button
                     id="product-trade-btn"
                     onClick={handleTrade}
-                    disabled={trading}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-hover text-white py-3.5 rounded-xl font-semibold hover:-translate-y-0.5 transition-all shadow-[0_0_15px_rgba(91,124,250,0.3)] hover:shadow-[0_0_20px_rgba(91,124,250,0.5)] border border-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-hover text-white py-3.5 rounded-xl font-semibold hover:-translate-y-0.5 transition-all shadow-[0_0_15px_rgba(91,124,250,0.3)] hover:shadow-[0_0_20px_rgba(91,124,250,0.5)] border border-primary/20"
                   >
-                    {trading ? (
-                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        <path d="M15 9l-6 6M9 9h.01M15 15h.01" />
-                      </svg>
-                    )}
-                    {trading ? 'Initiating Trade…' : 'Request Trade'}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                      <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path d="M15 9l-6 6M9 9h.01M15 15h.01" />
+                    </svg>
+                    Checkout
                   </button>
                 )}
               </div>
