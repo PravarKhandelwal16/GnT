@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'r
 import { Loader2 } from 'lucide-react';
 import { AuthModal } from './components/AuthModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { WakingNotice } from './components/WakingNotice';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModalProvider } from './context/AuthModalContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -131,6 +132,7 @@ function App() {
         <ToastProvider>
           <AuthProvider>
             <AppShell />
+            <WakingNotice />
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>

@@ -18,19 +18,58 @@ export function readToken(): string | null {
   return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
 }
 
+/* ── Slow-request signal ──
+   On the free hosting plan the API sleeps when nobody uses it, and the first request waits while
+   it starts again. A request still running after SLOW_MS raises `api:slow` so the app can explain
+   the wait instead of looking frozen; `api:settled` fires once no slow request is left. */
+const SLOW_MS = 3000;
+let slowCount = 0;
+const pending = new WeakMap<object, { timer: number; slow: boolean }>();
+
+function track(config: object) {
+  const entry = { timer: 0, slow: false };
+  entry.timer = window.setTimeout(() => {
+    entry.slow = true;
+    slowCount += 1;
+    if (slowCount === 1) window.dispatchEvent(new Event('api:slow'));
+  }, SLOW_MS);
+  pending.set(config, entry);
+}
+
+function untrack(config: object | undefined) {
+  const entry = config && pending.get(config);
+  if (!entry) return;
+  window.clearTimeout(entry.timer);
+  pending.delete(config!);
+  if (entry.slow) {
+    slowCount -= 1;
+    if (slowCount === 0) window.dispatchEvent(new Event('api:settled'));
+  }
+}
+
+/** Wakes the API early (e.g. while someone is still typing) so their first real request is quick. */
+export function warmUp() {
+  apiClient.get('/api/products', { params: { size: 1 } }).catch(() => undefined);
+}
+
 /* ── Request interceptor: attach JWT if present ── */
 apiClient.interceptors.request.use((config) => {
   const token = readToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  track(config);
   return config;
 });
 
 /* ── Response interceptor: an expired session signs the user out ── */
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    untrack(response.config);
+    return response;
+  },
   (error) => {
+    untrack(error.config);
     if (error.response?.status === 401 && readToken()) {
       clearToken();
       window.dispatchEvent(new Event('auth:unauthorized'));
