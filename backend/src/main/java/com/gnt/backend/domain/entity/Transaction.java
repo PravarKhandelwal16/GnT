@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  *   <li>{@code WAITING_CONFIRMATION} – QR code scanned; waiting for both parties to confirm.</li>
  *   <li>{@code COMPLETED} – both parties confirmed; escrow released to seller.</li>
  *   <li>{@code CANCELLED} – either party cancelled; buyer refunded.</li>
- *   <li>{@code EXPIRED} – 2-minute timer elapsed without completion; buyer refunded, product unlocked.</li>
+ *   <li>{@code EXPIRED} – reservation window elapsed with no confirmation; buyer refunded, product unlocked.</li>
  * </ol>
  *
  * <p>QR tokens are retained after terminal status changes for historical/audit purposes.
@@ -98,7 +98,7 @@ public class Transaction {
 
     /**
      * Point in time after which this transaction automatically transitions to {@code EXPIRED}
-     * if not yet completed. Set to {@code createdAt + 2 minutes} by the service layer.
+     * if not yet completed. Set by the service layer from {@code application.exchange.reservation-hours}.
      */
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;

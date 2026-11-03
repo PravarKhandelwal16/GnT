@@ -1,6 +1,8 @@
 package com.gnt.backend.profile.controller;
 
 import com.gnt.backend.domain.entity.CreditHistory;
+import com.gnt.backend.profile.dto.ChangePasswordRequest;
+import com.gnt.backend.profile.dto.DeleteAccountRequest;
 import com.gnt.backend.profile.dto.UserProfileResponse;
 import com.gnt.backend.profile.dto.UserProfileUpdateRequest;
 import com.gnt.backend.profile.service.ProfileService;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users/me")
@@ -48,22 +51,26 @@ public class ProfileController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/delete/request-otp")
-    public ResponseEntity<java.util.Map<String, String>> requestAccountDeletionOtp(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        String otp = profileService.requestAccountDeletion(userPrincipal.getId());
-        // For the MVP, we return the OTP in the response for easy testing.
-        return ResponseEntity.ok(java.util.Map.of("otp", otp, "message", "OTP sent successfully (mocked)"));
+    @PostMapping(value = "/avatar", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserProfileResponse> updateAvatar(
+            @RequestPart("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(profileService.updateAvatar(userPrincipal.getId(), file));
     }
 
-    @DeleteMapping("/delete")
-    public ResponseEntity<Void> confirmAccountDeletion(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestBody java.util.Map<String, String> body) {
-        String otp = body.get("otp");
-        if (otp == null || otp.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-        profileService.confirmAccountDeletion(userPrincipal.getId(), otp);
-        return ResponseEntity.ok().build();
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        profileService.changePassword(userPrincipal.getId(), request.currentPassword(), request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/delete")
+    public ResponseEntity<Void> deleteAccount(
+            @Valid @RequestBody DeleteAccountRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        profileService.deleteAccount(userPrincipal.getId(), request.password());
+        return ResponseEntity.noContent().build();
     }
 }

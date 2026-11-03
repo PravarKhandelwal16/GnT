@@ -78,6 +78,15 @@ application-dev.yml
 application-dev.properties
 *.env
 .env.*
+!.env.example
+
+# Locally stored uploads, the local H2 database, and Render build downloads
+uploads/
+backend/data/
+backend/.jdk/
+backend/.maven/
+backend/.m2/
+backend/app.jar
 
 # ── IntelliJ IDEA ─────────────────────────────────────────────────────────────
 .idea/

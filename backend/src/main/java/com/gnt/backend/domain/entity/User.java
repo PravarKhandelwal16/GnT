@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString
+@ToString(exclude = "password")
 public class User {
 
     @Id
@@ -77,8 +77,11 @@ public class User {
     /**
      * Current credit balance. Must be >= 0.
      * New users receive 350 credits on registration (applied via service layer).
+     *
+     * <p>Not updatable through the entity: every later change goes through
+     * {@code CreditLedger}, so a concurrent profile save can never overwrite the balance.
      */
-    @Column(name = "credit_balance", nullable = false)
+    @Column(name = "credit_balance", nullable = false, updatable = false)
     private Integer creditBalance = 0;
 
     /**
@@ -90,6 +93,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
+
+    /** USER for members; MODERATOR (team) and ADMIN (owner) unlock the staff area. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private com.gnt.backend.domain.enums.Role role = com.gnt.backend.domain.enums.Role.USER;
 
     // ── Verification ─────────────────────────────────────────────────────────
 

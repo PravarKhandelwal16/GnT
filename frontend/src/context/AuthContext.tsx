@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiClient, storeToken, clearToken, TOKEN_KEY } from '../api/client';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiClient, clearToken, readToken, storeToken } from '../api/client';
 import { getMyProfile } from '../api/profile';
 import type { UserProfile } from '../api/profile';
-
-/* ─────────────────────── types ─────────────────────── */
+import { initials } from '../lib/format';
 
 export interface AuthUser {
   id: number;
@@ -15,6 +14,15 @@ export interface AuthUser {
   rating: number | null;
   profileImage: string | null;
   hasSeenWelcome: boolean;
+  role: 'USER' | 'MODERATOR' | 'ADMIN';
+}
+
+export interface SignupFields {
+  fullName: string;
+  email: string;
+  mobile: string;
+  password: string;
+  dateOfBirth: string;
 }
 
 interface AuthContextValue {
@@ -27,50 +35,22 @@ interface AuthContextValue {
   refreshUser: () => Promise<void>;
 }
 
-export interface SignupFields {
-  fullName: string;
-  email: string;
-  mobile: string;
-  password: string;
-  dateOfBirth: string; // ISO date string e.g. "1998-06-15"
-  street?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  country?: string;
-}
-
-/* ─────────────────────── helpers ─────────────────────── */
-
-function deriveInitials(name: string): string {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-function deriveShortName(name: string): string {
-  return name.split(' ')[0] ?? name;
-}
-
-function profileToAuthUser(profile: UserProfile): AuthUser {
+function toAuthUser(profile: UserProfile): AuthUser {
   return {
     id: profile.id,
     name: profile.name,
-    shortName: deriveShortName(profile.name),
+    shortName: profile.name.split(' ')[0] ?? profile.name,
     email: profile.email,
-    initials: deriveInitials(profile.name),
+    initials: initials(profile.name),
     creditBalance: profile.creditBalance,
     rating: profile.rating,
     profileImage: profile.profileImage,
     hasSeenWelcome: profile.hasSeenWelcome,
+    role: profile.role ?? 'USER',
   };
 }
 
-/* ─────────────────────── context ─────────────────────── */
-
-export const AuthContext = createContext<AuthContextValue>({
+const AuthContext = createContext<AuthContextValue>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -82,79 +62,52 @@ export const AuthContext = createContext<AuthContextValue>({
 
 export const useAuth = (): AuthContextValue => useContext(AuthContext);
 
-/* ─────────────────────── provider ─────────────────────── */
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  /* Restore session on mount */
   useEffect(() => {
-    const handleUnauthorized = () => {
-      clearToken();
-      setUser(null);
-    };
+    const handleUnauthorized = () => setUser(null);
     window.addEventListener('auth:unauthorized', handleUnauthorized);
 
-    const token =
-      localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
-    if (!token) {
+    if (!readToken()) {
       setIsLoading(false);
     } else {
-      // Token exists — validate by fetching profile
       getMyProfile()
-        .then((profile) => setUser(profileToAuthUser(profile)))
+        .then((profile) => setUser(toAuthUser(profile)))
         .catch(() => {
-          clearToken();
+          // A network failure keeps the token so the next visit can restore the session.
         })
         .finally(() => setIsLoading(false));
     }
 
-    return () => {
-      window.removeEventListener('auth:unauthorized', handleUnauthorized);
-    };
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-  /* Re-fetch profile and update user state */
   const refreshUser = useCallback(async () => {
     try {
-      const profile = await getMyProfile();
-      setUser(profileToAuthUser(profile));
+      setUser(toAuthUser(await getMyProfile()));
     } catch {
-      // ignore; user will still see the last-known state
+      // Keep the last known state.
     }
   }, []);
 
-  const login = useCallback(
-    async (email: string, password: string, remember: boolean): Promise<void> => {
-      const res = await apiClient.post<{ token: string }>('/api/auth/login', {
-        email,
-        password,
-      });
-      storeToken(res.data.token, remember);
-      const profile = await getMyProfile();
-      setUser(profileToAuthUser(profile));
-    },
-    [],
-  );
+  const login = useCallback(async (email: string, password: string, remember: boolean) => {
+    const res = await apiClient.post<{ token: string }>('/api/auth/login', { email, password });
+    storeToken(res.data.token, remember);
+    setUser(toAuthUser(await getMyProfile()));
+  }, []);
 
-  const signup = useCallback(async (fields: SignupFields): Promise<void> => {
+  const signup = useCallback(async (fields: SignupFields) => {
     const res = await apiClient.post<{ token: string }>('/api/auth/register', {
       name: fields.fullName,
       email: fields.email,
       phone: fields.mobile,
       password: fields.password,
       dateOfBirth: fields.dateOfBirth,
-      street: fields.street ?? null,
-      city: fields.city ?? null,
-      state: fields.state ?? null,
-      postalCode: fields.postalCode ?? null,
-      country: fields.country ?? null,
     });
-    // Always remember on signup
     storeToken(res.data.token, true);
-    const profile = await getMyProfile();
-    setUser(profileToAuthUser(profile));
+    setUser(toAuthUser(await getMyProfile()));
   }, []);
 
   const logout = useCallback(() => {
@@ -164,15 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: user !== null,
-        isLoading,
-        login,
-        signup,
-        logout,
-        refreshUser,
-      }}
+      value={{ user, isAuthenticated: user !== null, isLoading, login, signup, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

@@ -12,4 +12,7 @@ public interface TransactionService {
     TransactionResponse sellerConfirm(String qrToken, Long sellerId);
     TransactionResponse cancelTransaction(Long transactionId, Long userId);
     Page<TransactionResponse> getMyTransactions(Long userId, Pageable pageable);
+
+    /** Settles one overdue exchange in its own database transaction. No-op if no longer due. */
+    void settleIfExpired(Long transactionId);
 }

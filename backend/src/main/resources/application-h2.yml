@@ -1,0 +1,32 @@
+# Local development without MySQL: a file-based H2 database that starts empty.
+#   mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=h2"
+#
+# Data lives in backend/data/ (git-ignored) and survives restarts. Delete that folder to start over.
+# Browse the tables at http://localhost:<port>/h2-console (local requests only)
+#   JDBC URL: jdbc:h2:file:./data/gnt-local   User: sa   Password: (leave empty)
+#
+# Never use this profile in production.
+spring:
+  datasource:
+    url: jdbc:h2:file:${H2_DB_PATH:./data/gnt-local};MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+springdoc:
+  api-docs:
+    enabled: true
+
+application:
+  jwt:
+    secret: ${JWT_SECRET:local-only-secret-local-only-secret-local-only-secret}

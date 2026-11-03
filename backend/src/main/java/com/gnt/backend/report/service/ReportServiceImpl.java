@@ -12,6 +12,7 @@ import com.gnt.backend.report.mapper.ReportMapper;
 import com.gnt.backend.report.repository.ReportRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.gnt.backend.exception.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,20 +39,24 @@ public class ReportServiceImpl implements ReportService {
     @Transactional
     public ReportResponse submitReport(ReportRequest request, Long reporterId) {
         if (reportRepository.existsByProductIdAndReporterId(request.productId(), reporterId)) {
-            throw new RuntimeException("You have already reported this product");
+            throw ApiException.conflict("You have already reported this item");
         }
 
         Product product = productRepository.findById(request.productId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> ApiException.notFound("Product not found"));
+
+        if (product.getOwner().getId().equals(reporterId)) {
+            throw ApiException.badRequest("You can't report your own listing");
+        }
 
         User reporter = userRepository.findById(reporterId)
-                .orElseThrow(() -> new RuntimeException("Reporter not found"));
+                .orElseThrow(() -> ApiException.notFound("Reporter not found"));
 
         Report report = new Report();
         report.setProduct(product);
         report.setReporter(reporter);
         report.setReason(request.reason());
-        report.setDescription(request.description());
+        report.setDescription(request.description() != null ? request.description() : "");
         report.setStatus(ReportStatus.OPEN);
 
         Report savedReport = reportRepository.save(report);

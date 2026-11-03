@@ -74,6 +74,13 @@ public class Product {
     @Column(name = "credit_value", nullable = false)
     private Integer creditValue;
 
+    /**
+     * Credits actually paid to the owner for listing this product. Completion pays
+     * {@code creditValue - listingBonus}, and deletion claws back exactly this amount.
+     */
+    @Column(name = "listing_bonus", nullable = false)
+    private Integer listingBonus = 0;
+
     @Column(name = "street", nullable = false, length = 255)
     private String street;
 

@@ -1,0 +1,2 @@
+# Shell scripts run on Render (Linux); Windows line endings would break them.
+*.sh text eol=lf

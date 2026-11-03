@@ -1,6 +1,9 @@
 package com.gnt.backend.auth.controller;
 
 import com.gnt.backend.auth.dto.AuthenticationResponse;
+import com.gnt.backend.auth.dto.ForgotPasswordRequest;
+import com.gnt.backend.auth.dto.ResetPasswordRequest;
+import com.gnt.backend.auth.service.PasswordResetService;
 import com.gnt.backend.auth.dto.LoginRequest;
 import com.gnt.backend.auth.dto.RegisterRequest;
 import com.gnt.backend.auth.service.AuthService;
@@ -25,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/register")
@@ -44,5 +49,18 @@ public class AuthController {
     ) {
         AuthenticationResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    /** Always 204, whether or not the email has an account. */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.password());
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,0 +1,82 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repository.
+# Render asks for every value marked `sync: false` when the Blueprint is first applied.
+# MySQL is not provided by Render; DB_URL points at an external MySQL 8 database (Aiven).
+# No Docker: Render has no Java runtime, so the backend uses Render's Node environment and
+# render-build.sh downloads a pinned JDK 21 and Maven during the build.
+
+services:
+  # Spring Boot API
+  - type: web
+    name: giveandtake-api
+    runtime: node
+    rootDir: backend
+    buildCommand: bash render-build.sh
+    startCommand: bash render-start.sh
+    plan: free
+    region: singapore
+    healthCheckPath: /api/products
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: OWNER_EMAILS
+        sync: false
+      # Render's disk is wiped on every deploy, so uploads need ImageKit.
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
+        sync: false
+      # Optional: SMTP for password-reset email. Leave blank to skip.
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      # The site's address, filled in by Render (https:// is added automatically).
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: giveandtake-web
+          property: host
+      - key: CORS_ALLOWED_ORIGINS
+        fromService:
+          type: web
+          name: giveandtake-web
+          property: host
+
+  # React site
+  - type: web
+    name: giveandtake-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      # Send every app route (e.g. /orders/12) to the single-page app.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: giveandtake-api
+          property: host

@@ -16,6 +16,7 @@ public record ProductRequest(
         String title,
 
         @NotBlank(message = "Description is required")
+        @Size(max = 5000, message = "Description cannot exceed 5000 characters")
         String description,
 
         @NotNull(message = "Category is required")

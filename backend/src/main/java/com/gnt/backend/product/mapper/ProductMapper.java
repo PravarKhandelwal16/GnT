@@ -26,11 +26,14 @@ public class ProductMapper {
                 product.getId(),
                 product.getOwner().getId(),
                 product.getOwner().getName(),
+                product.getOwner().getRating().doubleValue(),
+                product.getOwner().getProfileImage(),
                 product.getTitle(),
                 product.getDescription(),
                 product.getCategory(),
                 product.getCondition(),
                 product.getCreditValue(),
+                canSeeFullAddress ? product.getListingBonus() : null,
                 street,
                 product.getCity(),
                 product.getState(),
@@ -58,6 +61,8 @@ public class ProductMapper {
                 product.getCondition(),
                 product.getCreditValue(),
                 primaryMediaUrl,
+                product.getCity(),
+                product.getState(),
                 product.getCreatedAt(),
                 product.getStatus()
         );

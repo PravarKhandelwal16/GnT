@@ -6,6 +6,8 @@ import com.gnt.backend.profile.dto.UserProfileUpdateRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import org.springframework.web.multipart.MultipartFile;
+
 public interface ProfileService {
     UserProfileResponse getProfile(Long userId);
     UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest request);
@@ -14,8 +16,9 @@ public interface ProfileService {
     void markWelcomeSeen(Long userId);
 
     // Account Deletion
-    String requestAccountDeletion(Long userId);
-    void confirmAccountDeletion(Long userId, String otp);
+    UserProfileResponse updateAvatar(Long userId, MultipartFile file);
+    void changePassword(Long userId, String currentPassword, String newPassword);
+    void deleteAccount(Long userId, String password);
 
     Page<CreditHistory> getCreditHistory(Long userId, Pageable pageable);
 }

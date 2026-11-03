@@ -1,203 +1,223 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { MarketProductCard } from '../components/MarketProductCard';
-import { Navbar } from '../components/Navbar';
-import { MarketCardSkeleton } from '../components/Skeleton';
-import { EmptyState } from '../components/EmptyState';
-import { ErrorState } from '../components/ErrorState';
-import {
-  Search,
-  SlidersHorizontal,
-  Monitor,
-  Home,
-  Shirt,
-  Dumbbell,
-  BookOpen,
-  Music,
-  Utensils,
-  Box,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { getProducts } from '../api/products';
-import type { Category, ProductListItem } from '../api/products';
+import type { Category, Condition, ProductListItem } from '../api/products';
+import { PageHeader, PageShell } from '../components/Layout';
+import { ProductCard, ProductCardSkeleton, ProductGrid } from '../components/ProductCard';
+import { Button, EmptyState, ErrorState } from '../components/ui';
+import { useAuthModal } from '../context/AuthModalContext';
+import { CATEGORIES, CONDITIONS } from '../lib/catalog';
 
-/* ─── Category map ─── */
-type CategoryFilter = Category | 'ALL';
-
-const CATEGORIES: Array<{ id: CategoryFilter; name: string; icon: React.ComponentType<{ className?: string }> | null }> = [
-  { id: 'ALL', name: 'All Items', icon: null },
-  { id: 'ELECTRONICS', name: 'Electronics', icon: Monitor },
-  { id: 'HOME_AND_GARDEN', name: 'Home', icon: Home },
-  { id: 'CLOTHING', name: 'Fashion', icon: Shirt },
-  { id: 'SPORTS', name: 'Sports', icon: Dumbbell },
-  { id: 'BOOKS', name: 'Books', icon: BookOpen },
-  { id: 'MUSIC', name: 'Music', icon: Music },
-  { id: 'KITCHEN', name: 'Kitchen', icon: Utensils },
-  { id: 'OTHER', name: 'Other', icon: Box },
+const SORTS = [
+  { value: 'createdAt,desc', label: 'Newest first' },
+  { value: 'creditValue,asc', label: 'Credits: low to high' },
+  { value: 'creditValue,desc', label: 'Credits: high to low' },
 ];
 
-const CONDITION_LABELS: Record<string, string> = {
-  NEW: 'New',
-  LIKE_NEW: 'Like New',
-  GOOD: 'Good',
-  FAIR: 'Fair',
-  POOR: 'Poor',
-};
+const PAGE_SIZE = 12;
 
-export const Market: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const initialCategory = (searchParams.get('category') as CategoryFilter) || 'ALL';
-  const initialQuery = searchParams.get('query') || '';
+const Market: React.FC = () => {
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { requireAuth } = useAuthModal();
 
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>(initialCategory);
-  const [search, setSearch] = useState(initialQuery);
+  const category = (params.get('category') ?? '') as Category | '';
+  const condition = (params.get('condition') ?? '') as Condition | '';
+  const query = params.get('query') ?? '';
+  const sort = params.get('sort') ?? SORTS[0].value;
+
+  const [searchText, setSearchText] = useState(query);
   const [products, setProducts] = useState<ProductListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const latestRequest = useRef(0);
 
-  const fetchProducts = useCallback(async (category: CategoryFilter, pageNum: number, replace: boolean) => {
-    try {
-      if (replace) setIsLoading(true);
+  const updateParam = useCallback(
+    (key: string, value: string) => {
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (value) next.set(key, value);
+          else next.delete(key);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setParams],
+  );
+
+  useEffect(() => {
+    setSearchText(query);
+  }, [query]);
+
+  useEffect(() => {
+    if (searchText === query) return;
+    const timer = setTimeout(() => updateParam('query', searchText.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchText, query, updateParam]);
+
+  const load = useCallback(
+    async (pageNumber: number) => {
+      const request = ++latestRequest.current;
+      if (pageNumber === 0) setIsLoading(true);
       else setLoadingMore(true);
       setIsError(false);
 
-      const result = await getProducts({
-        ...(category !== 'ALL' && { category: category as Category }),
-        page: pageNum,
-        size: 12,
-      });
-
-      setProducts((prev) => replace ? result.content : [...prev, ...result.content]);
-      setHasMore(!result.last);
-      setPage(result.number);
-    } catch {
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
-    }
-  }, []);
+      try {
+        const result = await getProducts({
+          category: category || undefined,
+          condition: condition || undefined,
+          query: query || undefined,
+          page: pageNumber,
+          size: PAGE_SIZE,
+          sort,
+        });
+        // A slower, older response must not replace newer results.
+        if (request !== latestRequest.current) return;
+        setProducts((current) => (pageNumber === 0 ? result.content : [...current, ...result.content]));
+        setTotal(result.totalElements);
+        setHasMore(!result.last);
+        setPage(result.number);
+      } catch {
+        if (request === latestRequest.current) setIsError(true);
+      } finally {
+        if (request === latestRequest.current) {
+          setIsLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [category, condition, query, sort],
+  );
 
   useEffect(() => {
-    fetchProducts(activeCategory, 0, true);
-  }, [activeCategory, fetchProducts]);
+    load(0);
+  }, [load]);
 
-  const handleRetry = () => fetchProducts(activeCategory, 0, true);
-
-  /* Client-side title search filter */
-  const filtered = search.trim()
-    ? products.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
-    : products;
+  const hasFilters = Boolean(category || condition || query);
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-200">
-      <Navbar />
+    <PageShell>
+      <PageHeader
+        eyebrow="The market"
+        title="Find its next chapter"
+        description="Everything here is priced in credits and collected in person."
+      />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-
-        {/* Search Bar */}
-        <div className="relative max-w-3xl mx-auto">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="h-6 w-6 text-textMain-secondary" />
-          </div>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-textMain-secondary" />
           <input
             id="market-search"
-            type="text"
-            className="block w-full pl-12 pr-14 py-4 bg-card border border-border rounded-[20px] text-lg shadow-soft hover:shadow-soft-hover focus:ring-2 focus:ring-primary/50 focus:border-primary text-textMain placeholder-textMain-secondary transition-all duration-300 outline-none"
-            placeholder="What are you looking for today?"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            aria-label="Search the market"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search by item or city"
+            className="field h-12 rounded-full pl-11"
           />
-          <div className="absolute inset-y-0 right-2 flex items-center">
-            <button className="p-2.5 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-colors">
-              <SlidersHorizontal className="h-5 w-5" />
-            </button>
-          </div>
         </div>
+        <select
+          aria-label="Condition"
+          value={condition}
+          onChange={(e) => updateParam('condition', e.target.value)}
+          className="field h-12 rounded-full sm:w-44"
+        >
+          <option value="">Any condition</option>
+          {CONDITIONS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Sort by"
+          value={sort}
+          onChange={(e) => updateParam('sort', e.target.value === SORTS[0].value ? '' : e.target.value)}
+          className="field h-12 rounded-full sm:w-52"
+        >
+          {SORTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {/* Categories */}
-        <div className="flex flex-wrap gap-3">
-          {CATEGORIES.map((category) => {
-            const Icon = category.icon;
-            const isActive = activeCategory === category.id;
-            return (
-              <button
-                key={category.id}
-                id={`market-cat-${category.id.toLowerCase()}`}
-                onClick={() => setActiveCategory(category.id)}
-                className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 flex items-center gap-2 border shadow-sm ${
-                  isActive
-                    ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(91,124,250,0.3)]'
-                    : 'bg-surface text-textMain-secondary border-border hover:bg-card hover:text-textMain'
-                }`}
-              >
-                {Icon && <Icon className="w-4 h-4" />}
-                {category.name}
-              </button>
-            );
-          })}
-        </div>
+      <div className="scroll-row -mx-4 mb-8 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+        <button
+          type="button"
+          aria-pressed={!category}
+          onClick={() => updateParam('category', '')}
+          className={`chip ${category ? 'chip-idle' : 'chip-active'}`}
+        >
+          All
+        </button>
+        {CATEGORIES.map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={category === value}
+            onClick={() => updateParam('category', value)}
+            className={`chip ${category === value ? 'chip-active' : 'chip-idle'}`}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
 
-        {/* Product Grid / States */}
-        <div className="pt-2">
-          {isLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <MarketCardSkeleton key={i} />
-              ))}
+      {isLoading ? (
+        <ProductGrid>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <ProductCardSkeleton key={i} />
+          ))}
+        </ProductGrid>
+      ) : isError ? (
+        <ErrorState message="We couldn't load the market just now." onRetry={() => load(0)} />
+      ) : products.length === 0 ? (
+        <EmptyState
+          title="Nothing here yet"
+          description={
+            hasFilters ? 'Try a broader search or clear a filter.' : 'Be the first to pass something on.'
+          }
+          action={
+            hasFilters ? (
+              <Button variant="secondary" onClick={() => setParams({}, { replace: true })}>
+                Clear filters
+              </Button>
+            ) : (
+              <Button onClick={() => requireAuth() && navigate('/add-item')}>List an item</Button>
+            )
+          }
+        />
+      ) : (
+        <>
+          <p className="mb-5 text-sm text-textMain-secondary" aria-live="polite">
+            {total} {total === 1 ? 'item' : 'items'}
+          </p>
+          <ProductGrid>
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </ProductGrid>
+          {hasMore && (
+            <div className="mt-12 flex justify-center">
+              <Button variant="secondary" loading={loadingMore} onClick={() => load(page + 1)}>
+                Show more
+              </Button>
             </div>
           )}
-
-          {!isLoading && isError && (
-            <ErrorState
-              onRetry={handleRetry}
-              message="We couldn't fetch the market listings right now. Please check your connection and try again."
-            />
-          )}
-
-          {!isLoading && !isError && filtered.length === 0 && (
-            <EmptyState
-              title="No Items Found"
-              description="It looks like there aren't any items in this category yet. Be the first to list something!"
-              actionLabel="List an Item"
-              onAction={() => (window.location.href = '/add-item')}
-            />
-          )}
-
-          {!isLoading && !isError && filtered.length > 0 && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filtered.map((product) => (
-                  <MarketProductCard
-                    key={product.id}
-                    id={product.id}
-                    title={product.title}
-                    credits={product.creditValue}
-                    location="View Details"
-                    condition={CONDITION_LABELS[product.condition] ?? product.condition}
-                    image={product.primaryMediaUrl ?? `https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop`}
-                  />
-                ))}
-              </div>
-
-              {hasMore && (
-                <div className="flex justify-center mt-10">
-                  <button
-                    id="market-load-more"
-                    onClick={() => fetchProducts(activeCategory, page + 1, false)}
-                    disabled={loadingMore}
-                    className="px-8 py-3 bg-card border border-border rounded-full text-sm font-medium text-textMain hover:border-primary/30 hover:text-primary transition-all disabled:opacity-60"
-                  >
-                    {loadingMore ? 'Loading…' : 'Load More'}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </main>
-    </div>
+        </>
+      )}
+    </PageShell>
   );
 };
+
+export default Market;

@@ -10,8 +10,5 @@ class GntApplicationTests {
 
     @Test
     void contextLoads() {
-        // Validates that the Spring context starts cleanly,
-        // Flyway migrations run without error, and Hibernate
-        // validates the schema successfully.
     }
 }

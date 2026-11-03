@@ -17,7 +17,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.gnt.backend.admin.OwnerBootstrap;
+import com.gnt.backend.domain.enums.Role;
 import org.springframework.stereotype.Service;
+
+import java.util.Locale;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -49,19 +53,22 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final OwnerBootstrap ownerBootstrap;
 
     public AuthServiceImpl(
             UserRepository userRepository,
             CreditHistoryRepository creditHistoryRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            AuthenticationManager authenticationManager
+            AuthenticationManager authenticationManager,
+            OwnerBootstrap ownerBootstrap
     ) {
         this.userRepository = userRepository;
         this.creditHistoryRepository = creditHistoryRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.ownerBootstrap = ownerBootstrap;
     }
 
     // ── Registration ──────────────────────────────────────────────────────────
@@ -69,8 +76,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthenticationResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new EmailAlreadyExistsException(request.email());
+        String email = normalizeEmail(request.email());
+        if (userRepository.existsByEmail(email)) {
+            throw new EmailAlreadyExistsException(email);
         }
         if (userRepository.existsByPhone(request.phone())) {
             throw new PhoneAlreadyExistsException(request.phone());
@@ -85,10 +93,14 @@ public class AuthServiceImpl implements AuthService {
         return new AuthenticationResponse(jwt);
     }
 
+    private static String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
     private User buildUser(RegisterRequest request) {
         User user = new User();
         user.setName(request.name());
-        user.setEmail(request.email().toLowerCase().trim());
+        user.setEmail(normalizeEmail(request.email()));
         user.setPhone(request.phone());
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setStreet(request.street());
@@ -99,6 +111,9 @@ public class AuthServiceImpl implements AuthService {
         user.setDateOfBirth(request.dateOfBirth());
         user.setCreditBalance(INITIAL_CREDITS);
         user.setStatus(UserStatus.ACTIVE);
+        if (ownerBootstrap.isOwnerEmail(user.getEmail())) {
+            user.setRole(Role.ADMIN);
+        }
         return user;
     }
 
@@ -117,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthenticationResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
+                new UsernamePasswordAuthenticationToken(normalizeEmail(request.email()), request.password())
         );
 
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();

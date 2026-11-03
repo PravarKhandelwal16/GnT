@@ -2,6 +2,7 @@ package com.gnt.backend.product.controller;
 
 import com.gnt.backend.domain.enums.Category;
 import com.gnt.backend.domain.enums.Condition;
+import com.gnt.backend.exception.ApiException;
 import com.gnt.backend.product.dto.ProductListResponse;
 import com.gnt.backend.product.dto.ProductRequest;
 import com.gnt.backend.product.dto.ProductResponse;
@@ -10,14 +11,20 @@ import com.gnt.backend.security.UserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Set;
+
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
+
+    private static final Set<String> SORTABLE_FIELDS = Set.of("createdAt", "creditValue", "title");
 
     private final ProductService productService;
 
@@ -39,8 +46,14 @@ public class ProductController {
     public ResponseEntity<Page<ProductListResponse>> getActiveProducts(
             @RequestParam(required = false) Category category,
             @RequestParam(required = false) Condition condition,
-            Pageable pageable) {
-        return ResponseEntity.ok(productService.getActiveProducts(category, condition, pageable));
+            @RequestParam(required = false) String query,
+            @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        pageable.getSort().forEach(order -> {
+            if (!SORTABLE_FIELDS.contains(order.getProperty())) {
+                throw ApiException.badRequest("Can't sort by " + order.getProperty());
+            }
+        });
+        return ResponseEntity.ok(productService.getActiveProducts(category, condition, query, pageable));
     }
 
     @GetMapping("/{id}")

@@ -8,7 +8,8 @@ export type CreditHistoryType =
   | 'PRODUCT_PURCHASE'
   | 'PRODUCT_COMPLETED'
   | 'REFUND'
-  | 'MANUAL_ADJUSTMENT';
+  | 'MANUAL_ADJUSTMENT'
+  | 'LISTING_ADJUSTMENT';
 
 export interface UserProfile {
   id: number;
@@ -28,26 +29,23 @@ export interface UserProfile {
   phoneVerified: boolean;
   hasSeenWelcome: boolean;
   status: UserStatus;
+  role: 'USER' | 'MODERATOR' | 'ADMIN';
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ProfileUpdateRequest {
-  name?: string;
-  phone?: string;
+  name: string;
+  phone: string;
   street?: string;
   city?: string;
   state?: string;
   postalCode?: string;
   country?: string;
-  dateOfBirth?: string;
-  profileImage?: string;
 }
 
 export interface CreditHistoryEntry {
   id: number;
-  userId: number;
-  transactionId: number | null;
   amount: number;
   transactionType: CreditHistoryType;
   description: string;
@@ -64,13 +62,21 @@ export async function updateMyProfile(data: ProfileUpdateRequest): Promise<UserP
   return res.data;
 }
 
-export async function getMyCreditHistory(
-  page = 0,
-  size = 20,
-): Promise<Page<CreditHistoryEntry>> {
-  const res = await apiClient.get<Page<CreditHistoryEntry>>('/api/users/me/credits', {
-    params: { page, size },
+export async function updateAvatar(file: File): Promise<UserProfile> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await apiClient.post<UserProfile>('/api/users/me/avatar', formData, {
+    headers: { 'Content-Type': undefined },
   });
+  return res.data;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post('/api/users/me/change-password', { currentPassword, newPassword });
+}
+
+export async function getMyCreditHistory(page = 0, size = 20): Promise<Page<CreditHistoryEntry>> {
+  const res = await apiClient.get<Page<CreditHistoryEntry>>('/api/users/me/credits', { params: { page, size } });
   return res.data;
 }
 
@@ -78,11 +84,14 @@ export async function markWelcomeSeen(): Promise<void> {
   await apiClient.post('/api/users/me/mark-welcome-seen');
 }
 
-export async function requestAccountDeletionOtp(): Promise<{ otp: string; message: string }> {
-  const res = await apiClient.post<{ otp: string; message: string }>('/api/users/me/delete/request-otp');
-  return res.data;
+export async function deleteAccount(password: string): Promise<void> {
+  await apiClient.post('/api/users/me/delete', { password });
 }
 
-export async function confirmAccountDeletion(otp: string): Promise<void> {
-  await apiClient.delete('/api/users/me/delete', { data: { otp } });
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiClient.post('/api/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  await apiClient.post('/api/auth/reset-password', { token, password });
 }

@@ -23,6 +23,7 @@ public record UserProfileResponse(
         Boolean phoneVerified,
         Boolean hasSeenWelcome,
         UserStatus status,
+        com.gnt.backend.domain.enums.Role role,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

@@ -13,6 +13,8 @@ public record ProductListResponse(
         Condition condition,
         Integer creditValue,
         String primaryMediaUrl,
+        String city,
+        String state,
         LocalDateTime createdAt,
         ProductStatus status
 ) {}

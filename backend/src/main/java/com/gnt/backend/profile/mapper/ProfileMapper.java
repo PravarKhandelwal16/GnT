@@ -26,6 +26,7 @@ public class ProfileMapper {
                 user.isPhoneVerified(),
                 user.isHasSeenWelcome(),
                 user.getStatus(),
+                user.getRole(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );

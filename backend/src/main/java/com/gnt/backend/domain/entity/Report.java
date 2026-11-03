@@ -33,7 +33,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(exclude = {"reporter", "product"})
+@ToString(exclude = {"reporter", "product", "resolvedBy"})
 public class Report {
 
     @Id
@@ -76,6 +76,18 @@ public class Report {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ReportStatus status = ReportStatus.OPEN;
+
+    // ── Resolution ────────────────────────────────────────────────────────────
+
+    @Column(name = "resolution_note", length = 500)
+    private String resolutionNote;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolved_by_id", foreignKey = @ForeignKey(name = "fk_reports_resolved_by"))
+    private User resolvedBy;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 
     // ── Audit ─────────────────────────────────────────────────────────────────
 

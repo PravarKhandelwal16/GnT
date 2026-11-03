@@ -12,6 +12,7 @@ import com.gnt.backend.rating.repository.RatingRepository;
 import com.gnt.backend.transaction.repository.TransactionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.gnt.backend.exception.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,18 +39,18 @@ public class RatingServiceImpl implements RatingService {
     @Transactional
     public RatingResponse submitRating(RatingRequest request, Long reviewerId) {
         Transaction tx = transactionRepository.findById(request.transactionId())
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                .orElseThrow(() -> ApiException.notFound("Transaction not found"));
 
         if (tx.getStatus() != TransactionStatus.COMPLETED) {
-            throw new RuntimeException("Cannot rate an incomplete transaction");
+            throw ApiException.conflict("You can rate an exchange once it is complete");
         }
 
         if (ratingRepository.existsByTransactionIdAndReviewerId(tx.getId(), reviewerId)) {
-            throw new RuntimeException("You have already rated this transaction");
+            throw ApiException.conflict("You have already rated this exchange");
         }
 
         User reviewer = userRepository.findById(reviewerId)
-                .orElseThrow(() -> new RuntimeException("Reviewer not found"));
+                .orElseThrow(() -> ApiException.notFound("Reviewer not found"));
 
         User reviewee;
         if (tx.getBuyer().getId().equals(reviewerId)) {
@@ -57,7 +58,7 @@ public class RatingServiceImpl implements RatingService {
         } else if (tx.getSeller().getId().equals(reviewerId)) {
             reviewee = tx.getBuyer();
         } else {
-            throw new RuntimeException("You are not a participant in this transaction");
+            throw ApiException.forbidden("You are not part of this exchange");
         }
 
         Rating rating = new Rating();
@@ -71,7 +72,8 @@ public class RatingServiceImpl implements RatingService {
 
         // Recalculate average rating for reviewee
         Double average = ratingRepository.getAverageRatingForUser(reviewee.getId());
-        reviewee.setRating(java.math.BigDecimal.valueOf(average != null ? average : 0.0));
+        reviewee.setRating(java.math.BigDecimal.valueOf(average != null ? average : 0.0)
+                .setScale(2, java.math.RoundingMode.HALF_UP));
         userRepository.save(reviewee);
 
         return ratingMapper.toResponse(savedRating);

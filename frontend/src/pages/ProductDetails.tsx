@@ -1,434 +1,374 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Heart, MapPin, ArrowLeft, Star, BadgeCheck, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Navbar } from '../components/Navbar';
-import { useAuth } from '../context/AuthContext';
-import { getProductById, deleteProduct } from '../api/products';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Bookmark, Flag, MapPin, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { getSavedIds, reportProduct, saveProduct, unsaveProduct } from '../api/engagement';
+import { deleteProduct, getProductById } from '../api/products';
 import type { ProductDetail } from '../api/products';
+import { getUserRatings } from '../api/ratings';
+import type { RatingResponse } from '../api/ratings';
+import { PageShell } from '../components/Layout';
+import { Alert, Avatar, Button, Credits, EmptyState, Field, Modal, ProductImage, Skeleton, Stars, StatusBadge, buttonClasses } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
+import { useAuthModal } from '../context/AuthModalContext';
+import { useToast } from '../context/ToastContext';
+import { categoryLabel, conditionLabel } from '../lib/catalog';
+import { apiError, formatDate } from '../lib/format';
 
-const CONDITION_LABELS: Record<string, string> = {
-  NEW: 'Brand New',
-  LIKE_NEW: 'Like New',
-  GOOD: 'Good / Used',
-  FAIR: 'Fair',
-  POOR: 'Poor',
+const REPORT_REASONS = ['Misleading description', 'Prohibited item', 'Suspected scam', 'Offensive content', 'Other'];
+
+const ReportModal: React.FC<{ productId: number; onClose: () => void }> = ({ productId, onClose }) => {
+  const toast = useToast();
+  const [reason, setReason] = useState(REPORT_REASONS[0]);
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    setError('');
+    try {
+      await reportProduct(productId, reason, description);
+      toast('Thanks. We have your report.');
+      onClose();
+    } catch (err) {
+      setError(apiError(err));
+      setSending(false);
+    }
+  };
+
+  return (
+    <Modal title="Report this listing" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        {error && <Alert>{error}</Alert>}
+        <Field label="What's wrong?" htmlFor="report-reason">
+          <select id="report-reason" className="field" value={reason} onChange={(e) => setReason(e.target.value)}>
+            {REPORT_REASONS.map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Anything else? (optional)" htmlFor="report-details">
+          <textarea
+            id="report-details"
+            rows={3}
+            maxLength={1000}
+            className="field resize-none"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </Field>
+        <Button type="submit" className="w-full" loading={sending}>
+          Send report
+        </Button>
+      </form>
+    </Modal>
+  );
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  ELECTRONICS: 'Electronics',
-  BOOKS: 'Books',
-  CLOTHING: 'Clothing',
-  HOME_AND_GARDEN: 'Home & Garden',
-  SPORTS: 'Sports',
-  MUSIC: 'Music',
-  KITCHEN: 'Kitchen',
-  TOYS: 'Toys',
-  VEHICLES: 'Vehicles',
-  OTHER: 'Other',
-};
-
-export const ProductDetails: React.FC = () => {
+const ProductDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const toast = useToast();
+  const { user, isAuthenticated, refreshUser } = useAuth();
+  const { requireAuth } = useAuthModal();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [reviews, setReviews] = useState<RatingResponse[]>([]);
+  const [reviewCount, setReviewCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     if (!id) return;
     setIsLoading(true);
+    setActiveIndex(0);
     getProductById(id)
       .then((p) => {
         setProduct(p);
-        setIsLoading(false);
+        getUserRatings(p.ownerId)
+          .then((page) => {
+            setReviews(page.content);
+            setReviewCount(page.totalElements);
+          })
+          .catch(() => setReviews([]));
       })
-      .catch(() => {
-        setIsError(true);
-        setIsLoading(false);
-      });
+      .catch(() => setProduct(null))
+      .finally(() => setIsLoading(false));
   }, [id]);
 
-  const handleTrade = () => {
-    if (!product) return;
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/product/${id}` } });
-      return;
+  useEffect(() => {
+    if (!isAuthenticated || !id) return;
+    getSavedIds()
+      .then((ids) => setSaved(ids.includes(Number(id))))
+      .catch(() => {});
+  }, [isAuthenticated, id]);
+
+  const toggleSaved = async () => {
+    if (!product || !requireAuth()) return;
+    const next = !saved;
+    setSaved(next);
+    try {
+      await (next ? saveProduct(product.id) : unsaveProduct(product.id));
+    } catch (err) {
+      setSaved(!next);
+      toast(apiError(err), 'error');
     }
-    navigate(`/checkout/${id}`);
   };
 
-  const confirmDeleteProduct = async () => {
+  const confirmDelete = async () => {
     if (!product) return;
     setDeleting(true);
+    setDeleteError('');
     try {
       await deleteProduct(product.id);
-      setShowDeleteModal(false);
-      navigate('/market');
+      await refreshUser();
+      toast('Listing removed');
+      navigate('/listings');
     } catch (err) {
-      console.error('Failed to delete product', err);
-      alert('Could not delete the product. Ensure it is not locked or already exchanged.');
-    } finally {
+      setDeleteError(apiError(err));
       setDeleting(false);
     }
   };
 
-  /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-4">
-              <div className="h-[500px] bg-card border border-border rounded-[20px]" />
-              <div className="h-48 bg-card border border-border rounded-[20px]" />
-            </div>
-            <div className="space-y-4">
-              <div className="h-72 bg-card border border-border rounded-[20px]" />
-              <div className="h-40 bg-card border border-border rounded-[20px]" />
-            </div>
+      <PageShell>
+        <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
+          <Skeleton className="aspect-square w-full rounded-3xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-3/4" />
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-52 w-full" />
           </div>
-        </main>
-      </div>
+        </div>
+      </PageShell>
     );
   }
 
-  /* ── Error ── */
-  if (isError || !product) {
+  if (!product) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          <div className="bg-card border border-border rounded-[20px] p-12 text-center">
-            <p className="text-textMain font-semibold mb-2">Product not found</p>
-            <p className="text-textMain-secondary text-sm mb-6">
-              This item may have been removed or is no longer available.
-            </p>
-            <Link
-              to="/market"
-              className="inline-flex items-center gap-2 text-primary hover:text-primary-hover font-medium transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Back to Marketplace
+      <PageShell>
+        <EmptyState
+          title="This item has moved on"
+          description="It may have been removed or found a new home."
+          action={
+            <Link to="/market" className={buttonClasses('secondary')}>
+              Back to the market
             </Link>
-          </div>
-        </main>
-      </div>
+          }
+        />
+      </PageShell>
     );
   }
 
   const isOwner = user?.id === product.ownerId;
-  const images =
-    product.media.length > 0
-      ? [...product.media].sort((a, b) => a.displayOrder - b.displayOrder).map((m) => m.mediaUrl)
-      : ['https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop'];
+  const media = [...product.media].sort((a, b) => a.displayOrder - b.displayOrder);
+  const active = media[activeIndex];
+  const reward = product.listingBonus ?? 0;
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-200 font-sans text-textMain">
-      <Navbar />
+    <PageShell>
+      <Link to="/market" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-textMain-secondary hover:text-textMain">
+        <ArrowLeft size={15} /> Market
+      </Link>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm text-textMain-secondary mb-6">
-          <Link to="/market" className="flex items-center hover:text-textMain transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
-            Back to Market
-          </Link>
-          <span className="mx-3 opacity-50">/</span>
-          <span className="hover:text-textMain cursor-pointer transition-colors">
-            {CATEGORY_LABELS[product.category] ?? product.category}
-          </span>
-          <span className="mx-3 opacity-50">/</span>
-          <span className="text-textMain font-medium truncate max-w-[200px]">{product.title}</span>
+      <div className="grid items-start gap-10 lg:grid-cols-[1.3fr_1fr] lg:gap-14">
+        <div>
+          <div className="overflow-hidden rounded-3xl border border-border bg-card">
+            {active?.mediaType === 'VIDEO' ? (
+              <video src={active.mediaUrl} controls className="aspect-square w-full bg-black object-contain" />
+            ) : (
+              <ProductImage src={active?.mediaUrl ?? null} alt={product.title} className="aspect-square w-full" />
+            )}
+          </div>
+          {media.length > 1 && (
+            <div className="mt-3 flex gap-3 overflow-x-auto scroll-row">
+              {media.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-label={`View ${item.mediaType === 'VIDEO' ? 'video' : 'photo'} ${index + 1}`}
+                  aria-current={index === activeIndex}
+                  onClick={() => setActiveIndex(index)}
+                  className={`h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-colors ${
+                    index === activeIndex ? 'border-primary' : 'border-transparent'
+                  }`}
+                >
+                  {item.mediaType === 'VIDEO' ? (
+                    <video src={item.mediaUrl} muted className="h-full w-full object-cover" />
+                  ) : (
+                    <ProductImage src={item.mediaUrl} alt="" className="h-full w-full" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <section className="mt-10">
+            <h2 className="display text-2xl">About this item</h2>
+            <p className="mt-3 whitespace-pre-line leading-relaxed text-textMain-secondary">{product.description}</p>
+            <dl className="mt-6 grid grid-cols-2 gap-5 border-t border-border pt-6 sm:grid-cols-3">
+              {[
+                ['Condition', conditionLabel(product.condition)],
+                ['Category', categoryLabel(product.category)],
+                ['Listed', formatDate(product.createdAt)],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs text-textMain-secondary">{label}</dt>
+                  <dd className="mt-1 font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          {reviews.length > 0 && (
+            <section className="mt-10">
+              <h2 className="display text-2xl">Reviews of {product.ownerName}</h2>
+              <ul className="mt-4 divide-y divide-border">
+                {reviews.map((review) => (
+                  <li key={review.id} className="py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium">{review.reviewerName}</span>
+                      <Stars value={review.rating} size={13} />
+                    </div>
+                    {review.review && <p className="mt-1.5 text-sm text-textMain-secondary">{review.review}</p>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Images */}
-            {images.length === 1 ? (
-              <div className="h-[500px] bg-card rounded-[20px] border border-border overflow-hidden shadow-soft">
-                <img src={images[0]} alt={product.title} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-4 h-[500px]">
-                <div className="col-span-2 bg-card rounded-[20px] border border-border overflow-hidden relative shadow-soft">
-                  <img
-                    src={images[activeImage]}
-                    alt={product.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {images.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setActiveImage((i) => (i === 0 ? images.length - 1 : i - 1))}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-background/70 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-background transition-colors"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-                      <button
-                        onClick={() => setActiveImage((i) => (i === images.length - 1 ? 0 : i + 1))}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-background/70 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-background transition-colors"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </>
-                  )}
-                </div>
-                <div className="col-span-1 flex flex-col gap-4">
-                  {images.slice(1, 3).map((img, i) => (
-                    <div
-                      key={i}
-                      onClick={() => setActiveImage(i + 1)}
-                      className={`flex-1 bg-card rounded-[20px] border overflow-hidden relative cursor-pointer shadow-soft transition-all ${
-                        activeImage === i + 1 ? 'border-primary' : 'border-border hover:border-primary/40'
-                      }`}
-                    >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                      {i === 1 && images.length > 3 && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                          <span className="bg-surface/80 text-textMain px-4 py-1.5 rounded-full font-medium text-sm shadow-sm backdrop-blur-md border border-border">
-                            +{images.length - 3} Photos
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Description */}
-            <div className="bg-card rounded-[20px] p-8 shadow-soft border border-border">
-              <h2 className="text-xl font-bold text-textMain mb-4">Description</h2>
-              <p className="text-textMain-secondary leading-relaxed mb-8 text-[15px]">
-                {product.description}
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-border">
-                <div>
-                  <h4 className="text-xs font-semibold text-textMain-secondary uppercase tracking-wider mb-2">
-                    Condition
-                  </h4>
-                  <div className="flex items-center text-textMain font-medium text-[15px]">
-                    <BadgeCheck className="w-4 h-4 text-success mr-1.5" />
-                    {CONDITION_LABELS[product.condition] ?? product.condition}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-textMain-secondary uppercase tracking-wider mb-2">
-                    Category
-                  </h4>
-                  <div className="text-textMain font-medium text-[15px]">
-                    {CATEGORY_LABELS[product.category] ?? product.category}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-textMain-secondary uppercase tracking-wider mb-2">
-                    Status
-                  </h4>
-                  <div className="text-textMain font-medium text-[15px] capitalize">
-                    {product.status.replace(/_/g, ' ').toLowerCase()}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-textMain-secondary uppercase tracking-wider mb-2">
-                    Listed
-                  </h4>
-                  <div className="text-textMain font-medium text-[15px]">
-                    {new Date(product.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
+        <aside className="lg:sticky lg:top-24">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="display text-4xl leading-[1.1]">{product.title}</h1>
+            <button
+              type="button"
+              onClick={toggleSaved}
+              aria-pressed={saved}
+              aria-label={saved ? 'Remove from saved' : 'Save item'}
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-border bg-card transition-colors hover:border-primary/40"
+            >
+              <Bookmark size={18} className={saved ? 'fill-gold text-gold' : 'text-textMain-secondary'} />
+            </button>
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Top Card */}
-            <div className="bg-card rounded-[20px] p-6 shadow-soft hover:shadow-soft-hover transition-all border border-border">
-              <div className="flex justify-between items-start mb-4">
-                <h1 className="text-2xl font-bold text-textMain leading-tight pr-4">{product.title}</h1>
-                <button className="text-textMain-secondary hover:text-red-500 transition-colors p-2 -mr-2 -mt-2 rounded-full hover:bg-surface">
-                  <Heart className="w-6 h-6" />
-                </button>
-              </div>
+          <p className="mt-4 text-2xl">
+            <Credits value={product.creditValue} size={22} />
+            <span className="ml-1.5 text-base text-textMain-secondary">credits</span>
+          </p>
 
-              <div className="inline-flex items-center bg-success/10 text-success border border-success/20 px-4 py-1.5 rounded-full font-bold mb-8 shadow-sm">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  className="w-4 h-4 mr-1.5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9l-6 6M9 9h.01M15 15h.01" />
-                </svg>
-                {product.creditValue} Credits
-              </div>
-
-              <div className="flex items-center justify-between pt-6 border-t border-border mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 border-2 border-border flex items-center justify-center text-primary font-bold text-lg">
-                    {product.ownerName.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-textMain">{product.ownerName}</div>
-                    <div className="flex items-center text-sm text-textMain-secondary mt-0.5">
-                      <Star className="w-4 h-4 text-warning fill-warning mr-1" />
-                      Seller
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Error */}
+          <div className="panel mt-6 p-5">
+            {isOwner ? (
               <div className="space-y-3">
-                {isOwner ? (
-                  <div className="space-y-3">
-                    <Link
-                      to={`/listings`}
-                      className="w-full flex items-center justify-center gap-2 bg-surface border border-border text-textMain py-3.5 rounded-xl font-semibold hover:bg-card hover:-translate-y-0.5 transition-all shadow-soft hover:shadow-soft-hover"
-                    >
-                      Manage Your Listing
-                    </Link>
-                    <button
-                      onClick={() => setShowDeleteModal(true)}
-                      disabled={deleting}
-                      className="w-full flex items-center justify-center gap-2 bg-danger/10 border border-danger/20 text-danger py-3.5 rounded-xl font-semibold hover:bg-danger/20 hover:-translate-y-0.5 transition-all shadow-soft disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {deleting ? 'Deleting...' : 'Delete Listing'}
-                    </button>
-                  </div>
-                ) : product.status !== 'ACTIVE' ? (
-                  <div className="w-full text-center py-3.5 rounded-xl bg-surface border border-border text-textMain-secondary text-sm font-medium">
-                    {product.status === 'LOCKED'
-                      ? 'Item is currently reserved'
-                      : product.status === 'EXCHANGED'
-                      ? 'Item has been exchanged'
-                      : 'Item is not available'}
-                  </div>
-                ) : (
-                  <button
-                    id="product-trade-btn"
-                    onClick={handleTrade}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-hover text-white py-3.5 rounded-xl font-semibold hover:-translate-y-0.5 transition-all shadow-[0_0_15px_rgba(91,124,250,0.3)] hover:shadow-[0_0_20px_rgba(91,124,250,0.5)] border border-primary/20"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-                      <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      <path d="M15 9l-6 6M9 9h.01M15 15h.01" />
-                    </svg>
-                    Checkout
-                  </button>
+                {product.status === 'ACTIVE' && (
+                  <Link to={`/listings/${product.id}/edit`} className={buttonClasses('primary', 'lg', 'w-full')}>
+                    <Pencil size={16} /> Edit listing
+                  </Link>
                 )}
-              </div>
-            </div>
-
-            {/* Pickup Location */}
-            <div className="bg-card rounded-[20px] p-6 shadow-soft border border-border hover:shadow-soft-hover transition-all">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-textMain-secondary" />
-                <h3 className="font-bold text-textMain text-lg">Pickup Location</h3>
-              </div>
-
-              <div className="bg-surface rounded-xl h-48 mb-5 overflow-hidden relative flex items-center justify-center border border-border shadow-inner">
-                <div className="absolute inset-0 opacity-20 flex items-center justify-center">
-                  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                      <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-textMain-secondary" />
-                      </pattern>
-                    </defs>
-                    <rect width="100%" height="100%" fill="url(#grid)" />
-                  </svg>
-                </div>
-                <div className="relative z-10">
-                  <MapPin className="w-12 h-12 fill-primary text-background drop-shadow-[0_4px_8px_rgba(91,124,250,0.4)]" strokeWidth={1} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="font-semibold text-textMain text-[15px]">
-                  {product.street ? (
-                    <>
-                      <div>{product.street}</div>
-                      <div>{product.city}, {product.state} {product.postalCode}</div>
-                      <div>{product.country}</div>
-                    </>
-                  ) : (
-                    <div>{product.city}, {product.state}</div>
-                  )}
-                </div>
-                {!product.street && (
-                  <p className="text-xs text-textMain-secondary italic">
-                    Full address revealed after initiating trade.
+                {product.status === 'ACTIVE' ? (
+                  <Button variant="ghost" className="w-full text-danger hover:text-danger" onClick={() => setShowDelete(true)}>
+                    <Trash2 size={16} /> Remove listing
+                  </Button>
+                ) : (
+                  <p className="text-center text-sm text-textMain-secondary">
+                    {product.status === 'LOCKED' ? 'Reserved. See your exchanges for details.' : 'This listing has closed.'}
                   </p>
                 )}
-                
-                {product.sellerPhone && (
-                  <div className="pt-2 mt-2 border-t border-border">
-                    <p className="text-sm font-medium text-textMain-secondary mb-1">Seller Contact</p>
-                    <p className="text-textMain font-medium">{product.sellerPhone}</p>
-                  </div>
-                )}
               </div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Delete Item Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface border border-danger/30 rounded-[24px] shadow-2xl w-full max-w-md p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-7 h-7">
-                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
-              </svg>
-            </div>
-
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-textMain">Remove Item Listing?</h3>
-              <p className="text-sm text-textMain-secondary leading-relaxed">
-                Deleting this active listing will remove it from the marketplace.
+            ) : product.status === 'ACTIVE' ? (
+              <>
+                <Link
+                  to={`/checkout/${product.id}`}
+                  id="product-reserve"
+                  className={buttonClasses('primary', 'lg', 'w-full')}
+                >
+                  Reserve this item
+                </Link>
+                <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-textMain-secondary">
+                  <ShieldCheck size={15} className="flex-shrink-0 text-success" />
+                  Your credits are held until the handover. Cancel before then for a full refund.
+                </p>
+              </>
+            ) : (
+              <p className="text-center text-sm font-medium text-textMain-secondary">
+                {product.status === 'LOCKED' ? 'Currently reserved by another member' : 'This item has found a new home'}
               </p>
-              <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 text-left text-xs text-danger space-y-1">
-                <span className="font-semibold block text-sm">Credit Clawback Warning:</span>
-                The <strong>40% upfront credit bonus</strong> ({Math.round(product.creditValue * 0.4)} credits) awarded upon listing will be deducted (clawed back) from your account balance.
-              </div>
-            </div>
+            )}
+          </div>
 
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deleting}
-                className="flex-1 px-4 py-3 bg-surface border border-border text-textMain rounded-xl font-semibold hover:bg-card transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteProduct}
-                disabled={deleting}
-                className="flex-1 px-4 py-3 bg-danger text-white rounded-xl font-semibold hover:bg-danger-hover transition-all shadow-md disabled:opacity-60"
-              >
-                {deleting ? 'Removing...' : 'Confirm Remove Item'}
-              </button>
+          <div className="mt-6 flex items-center gap-3">
+            <Avatar name={product.ownerName} image={product.ownerImage} size="h-11 w-11 text-sm" />
+            <div>
+              <p className="font-medium">{product.ownerName}</p>
+              {reviewCount > 0 ? (
+                <p className="flex items-center gap-1.5 text-sm text-textMain-secondary">
+                  <Stars value={product.ownerRating} size={12} />
+                  {product.ownerRating.toFixed(1)} · {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+                </p>
+              ) : (
+                <StatusBadge>New member</StatusBadge>
+              )}
             </div>
           </div>
-        </div>
+
+          <div className="mt-6 flex items-start gap-3 border-t border-border pt-6">
+            <MapPin size={18} className="mt-0.5 flex-shrink-0 text-textMain-secondary" />
+            <div className="text-sm">
+              <p className="font-medium">
+                {product.street ? `${product.street}, ` : ''}
+                {product.city}, {product.state}
+              </p>
+              {!product.street && (
+                <p className="mt-0.5 text-textMain-secondary">The exact pickup address is shared after you reserve.</p>
+              )}
+              {product.sellerPhone && !isOwner && <p className="mt-0.5 text-textMain-secondary">{product.sellerPhone}</p>}
+            </div>
+          </div>
+
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={() => requireAuth() && setShowReport(true)}
+              className="mt-6 inline-flex items-center gap-1.5 text-xs font-medium text-textMain-secondary hover:text-danger"
+            >
+              <Flag size={13} /> Report this listing
+            </button>
+          )}
+        </aside>
+      </div>
+
+      {showReport && <ReportModal productId={product.id} onClose={() => setShowReport(false)} />}
+
+      {showDelete && (
+        <Modal title="Remove this listing?" onClose={() => setShowDelete(false)}>
+          <p className="text-sm leading-relaxed text-textMain-secondary">
+            It will leave the market and the {reward.toLocaleString()} credit listing reward will be taken back from your
+            wallet.
+          </p>
+          {deleteError && (
+            <div className="mt-4">
+              <Alert>{deleteError}</Alert>
+            </div>
+          )}
+          <div className="mt-6 flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => setShowDelete(false)}>
+              Keep it
+            </Button>
+            <Button variant="danger" className="flex-1" loading={deleting} onClick={confirmDelete}>
+              Remove
+            </Button>
+          </div>
+        </Modal>
       )}
-    </div>
+    </PageShell>
   );
 };
+
+export default ProductDetails;

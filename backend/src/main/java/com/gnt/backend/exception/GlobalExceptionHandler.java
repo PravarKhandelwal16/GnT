@@ -2,7 +2,19 @@ package com.gnt.backend.exception;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -30,6 +42,8 @@ import java.util.stream.Collectors;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // ── Authentication / Registration Errors ──────────────────────────────────
 
@@ -87,6 +101,59 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("errors", fieldErrors));
+    }
+
+    // ── Application & Request Errors ──────────────────────────────────────────
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, String>> handleApiException(ApiException ex) {
+        return error(ex.getStatus(), ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler({
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class,
+            MissingServletRequestPartException.class,
+            PropertyReferenceException.class
+    })
+    public ResponseEntity<Map<String, String>> handleBadRequest(Exception ex) {
+        return error(HttpStatus.BAD_REQUEST, "The request could not be understood.");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return error(HttpStatus.PAYLOAD_TOO_LARGE, "Those files are too large to upload.");
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> handleConcurrentUpdate(ObjectOptimisticLockingFailureException ex) {
+        return conflict("Someone else just changed this. Refresh and try again.");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return conflict("That conflicts with existing data.");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNoResource(NoResourceFoundException ex) {
+        return error(HttpStatus.NOT_FOUND, "Not found.");
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleUnexpected(Exception ex) throws Exception {
+        // Let Spring Security translate its own exceptions into 401/403.
+        if (ex instanceof AccessDeniedException || ex instanceof AuthenticationException) {
+            throw ex;
+        }
+        log.error("Unhandled exception", ex);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong on our side. Please try again.");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
