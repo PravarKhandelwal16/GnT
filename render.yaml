@@ -26,6 +26,12 @@ services:
         sync: false
       - key: OWNER_EMAILS
         sync: false
+      # 8 starter products from two sample sellers, listed on startup.
+      - key: SAMPLE_DATA
+        value: "true"
+      # Optional: lets you log in as the sample sellers. Leave blank and nobody can.
+      - key: SAMPLE_SELLER_PASSWORD
+        sync: false
       # Render's disk is wiped on every deploy, so uploads need ImageKit.
       - key: IMAGEKIT_PUBLIC_KEY
         sync: false

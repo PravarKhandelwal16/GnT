@@ -187,22 +187,6 @@ class StaffAccessTests {
     }
 
     @Test
-    void anOwnerCanAddTheSampleListingsOnceAndEarnsTheNormalReward() throws Exception {
-        mvc.perform(as(team, post("/api/admin/sample-listings"))).andExpect(status().isForbidden());
-
-        mvc.perform(as(owner, post("/api/admin/sample-listings")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.created").value(8));
-        mvc.perform(as(owner, post("/api/admin/sample-listings")))
-                .andExpect(jsonPath("$.created").value(0));
-
-        // 40% of 420+260+680+180+240+300+120+150, rounded down per item
-        assertThat(balance(owner)).isEqualTo(168 + 104 + 272 + 72 + 96 + 120 + 48 + 60);
-        mvc.perform(get("/api/products").param("query", "teak"))
-                .andExpect(jsonPath("$.content[0].primaryMediaUrl").value("/samples/chair.svg"));
-    }
-
-    @Test
     void theProfileTellsTheAppWhoIsStaff() throws Exception {
         mvc.perform(as(team, get("/api/users/me"))).andExpect(jsonPath("$.role").value("MODERATOR"));
         mvc.perform(as(member, get("/api/users/me"))).andExpect(jsonPath("$.role").value("USER"));

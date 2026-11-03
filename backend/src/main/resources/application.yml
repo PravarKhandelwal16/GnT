@@ -74,6 +74,11 @@ application:
   owner-emails: ${OWNER_EMAILS:}
   mail:
     from: ${MAIL_FROM:no-reply@giveandtake.local}
+  sample-data:
+    # Lists 8 starter products from two sample sellers on startup (never duplicates them).
+    enabled: ${SAMPLE_DATA:true}
+    # Optional: lets you log in as the sample sellers. Without it nobody can.
+    seller-password: ${SAMPLE_SELLER_PASSWORD:}
   exchange:
     # Time the buyer and seller have to meet after a reservation.
     reservation-hours: ${EXCHANGE_RESERVATION_HOURS:48}

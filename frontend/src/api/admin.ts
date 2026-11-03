@@ -134,7 +134,5 @@ export const admin = {
   cancelExchange: (id: number, reason: string) =>
     apiClient.post<ExchangeRow>(`/api/admin/exchanges/${id}/cancel`, { reason }).then((r) => r.data),
 
-  addSampleListings: () => apiClient.post<{ created: number }>('/api/admin/sample-listings').then((r) => r.data),
-
   audit: (params: Params) => apiClient.get<Page<AuditRow>>('/api/admin/audit', { params: clean(params) }).then((r) => r.data),
 };

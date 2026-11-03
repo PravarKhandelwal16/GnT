@@ -12,32 +12,12 @@ import { ActionModal, AdminHeader, ListState, Pager, RoleBadge, Status, label, u
 /* ── Overview ─────────────────────────────────────────────────────────────── */
 
 export const AdminOverview: React.FC = () => {
-  const isOwner = useIsOwner();
-  const toast = useToast();
-  const { refreshUser } = useAuth();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
-  const [addingSamples, setAddingSamples] = useState(false);
 
-  const load = () => {
+  useEffect(() => {
     admin.overview().then(setData).catch((err) => setError(apiError(err)));
-  };
-
-  useEffect(load, []);
-
-  const addSamples = async () => {
-    setAddingSamples(true);
-    try {
-      const { created } = await admin.addSampleListings();
-      toast(created ? `Listed ${created} sample items under your account` : 'The sample items are already listed');
-      load();
-      refreshUser();
-    } catch (err) {
-      toast(apiError(err), 'error');
-    } finally {
-      setAddingSamples(false);
-    }
-  };
+  }, []);
 
   if (error) return <Alert>{error}</Alert>;
 
@@ -81,17 +61,7 @@ export const AdminOverview: React.FC = () => {
 
   return (
     <>
-      <AdminHeader
-        title="Overview"
-        description="The state of the marketplace right now."
-        action={
-          isOwner && (
-            <Button id="add-sample-listings" variant="secondary" size="sm" loading={addingSamples} onClick={addSamples}>
-              Add sample listings
-            </Button>
-          )
-        }
-      />
+      <AdminHeader title="Overview" description="The state of the marketplace right now." />
       <div className="space-y-8">
         {groups.map((group) => (
           <section key={group.title}>

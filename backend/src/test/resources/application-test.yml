@@ -15,3 +15,5 @@ application:
   media:
     local-dir: target/test-uploads
   owner-emails: first-owner@example.test
+  sample-data:
+    enabled: false

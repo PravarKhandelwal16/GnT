@@ -27,11 +27,9 @@ public class AdminController {
     private static final String OWNER_ONLY = "hasRole('ADMIN')";
 
     private final AdminService adminService;
-    private final SampleListings sampleListings;
 
-    public AdminController(AdminService adminService, SampleListings sampleListings) {
+    public AdminController(AdminService adminService) {
         this.adminService = adminService;
-        this.sampleListings = sampleListings;
     }
 
     @GetMapping("/overview")
@@ -135,13 +133,6 @@ public class AdminController {
     public ExchangeRow cancelExchange(@PathVariable Long id, @Valid @RequestBody ReasonRequest request,
                                       @AuthenticationPrincipal UserPrincipal staff) {
         return adminService.cancelExchange(staff.getId(), id, request.reason());
-    }
-
-    /** Lists the starter items under the calling owner. Safe to call more than once. */
-    @PreAuthorize(OWNER_ONLY)
-    @PostMapping("/sample-listings")
-    public java.util.Map<String, Integer> addSampleListings(@AuthenticationPrincipal UserPrincipal staff) {
-        return java.util.Map.of("created", sampleListings.addFor(staff.getId()));
     }
 
     // ── Audit ────────────────────────────────────────────────────────────────
