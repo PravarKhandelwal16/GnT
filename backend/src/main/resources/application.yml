@@ -4,9 +4,11 @@ spring:
     import: optional:file:.env[.properties]
 
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/gnt?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    # No defaults on purpose: a missing value stops startup with a clear
+    # "Could not resolve placeholder 'DB_URL'" instead of trying localhost.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     open-in-view: false
