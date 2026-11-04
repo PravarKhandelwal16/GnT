@@ -10,8 +10,6 @@ import com.gnt.backend.report.dto.ReportRequest;
 import com.gnt.backend.report.dto.ReportResponse;
 import com.gnt.backend.report.mapper.ReportMapper;
 import com.gnt.backend.report.repository.ReportRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import com.gnt.backend.exception.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,12 +60,5 @@ public class ReportServiceImpl implements ReportService {
         Report savedReport = reportRepository.save(report);
 
         return reportMapper.toResponse(savedReport);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<ReportResponse> getMyReports(Long reporterId, Pageable pageable) {
-        return reportRepository.findByReporterIdOrderByCreatedAtDesc(reporterId, pageable)
-                .map(reportMapper::toResponse);
     }
 }

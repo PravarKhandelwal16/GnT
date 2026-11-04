@@ -28,10 +28,11 @@ Open http://localhost:5173. The market starts with 8 sample products from two sa
 
 ### With MySQL
 
+Point the backend at any MySQL 8 database (for example a local MySQL install or your Aiven database):
+
 ```powershell
-docker compose up -d                 # MySQL 8 on port 3306
 cd backend
-copy .env.example .env               # then fill it in (see below)
+copy .env.example .env               # then fill in DB_URL, DB_USERNAME, DB_PASSWORD and JWT_SECRET
 .\mvnw.cmd spring-boot:run
 ```
 

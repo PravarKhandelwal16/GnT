@@ -5,8 +5,6 @@ import com.gnt.backend.report.dto.ReportResponse;
 import com.gnt.backend.report.service.ReportService;
 import com.gnt.backend.security.UserPrincipal;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,12 +26,5 @@ public class ReportController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         ReportResponse response = reportService.submitReport(request, userPrincipal.getId());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-
-    @GetMapping("/my-reports")
-    public ResponseEntity<Page<ReportResponse>> getMyReports(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            Pageable pageable) {
-        return ResponseEntity.ok(reportService.getMyReports(userPrincipal.getId(), pageable));
     }
 }
